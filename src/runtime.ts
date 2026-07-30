@@ -1,14 +1,17 @@
 import { HedlesApi, HedlesApiError } from "./api.ts";
 import { resolveSessionToken } from "./auth.ts";
-import { apiUrl } from "./config.ts";
+import { DEFAULT_API_URL } from "./config.ts";
 
-export function publicApi(): HedlesApi {
-  return new HedlesApi(apiUrl());
+export function publicApi(apiUrl = DEFAULT_API_URL): HedlesApi {
+  return new HedlesApi(apiUrl);
 }
 
-export async function authenticatedApi(): Promise<HedlesApi> {
-  const api = publicApi();
-  return api.withSession(await resolveSessionToken(api));
+export async function authenticatedApi(
+  apiUrl = DEFAULT_API_URL,
+  organizationId?: string,
+): Promise<HedlesApi> {
+  const api = publicApi(apiUrl);
+  return api.withSession(await resolveSessionToken(api, organizationId));
 }
 
 export async function runExample(work: () => Promise<void>): Promise<void> {

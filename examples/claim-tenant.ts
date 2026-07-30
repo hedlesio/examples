@@ -1,6 +1,7 @@
 import { generateP256KeyPair } from "@turnkey/crypto";
 import { obtainSession } from "../src/auth.ts";
-import { custodyMode, optionalEnv, requiredEnv } from "../src/config.ts";
+import { apiOptions, choice, parseCommand } from "../src/cli.ts";
+import { optionalEnv } from "../src/config.ts";
 import { printJson, publicApi, runExample } from "../src/runtime.ts";
 import { createTurnkeyStamper } from "../src/turnkey.ts";
 import type { TurnkeyCredentials } from "../src/types.ts";
@@ -27,17 +28,44 @@ function claimCredentials(): { credentials: TurnkeyCredentials; generated: boole
 }
 
 await runExample(async () => {
-  const api = publicApi();
-  const tenantId = requiredEnv("HEDLES_TENANT_ID");
-  const claimCode = requiredEnv("HEDLES_CLAIM_CODE");
+  const options = parseCommand({
+    name: "claim",
+    description: "Claim a tenant and obtain its first Hedles session.",
+    options: {
+      ...apiOptions,
+      tenantId: {
+        description: "Tenant UUID from the claim link",
+        valueName: "uuid",
+        required: true,
+      },
+      claimCode: {
+        description: "Emailed one-time verification code",
+        valueName: "code",
+        required: true,
+      },
+      userName: {
+        description: "Initial owner display name; defaults to the verified email",
+        valueName: "name",
+      },
+      custodyMode: {
+        description: "Tenant custody mode",
+        valueName: "mode",
+        defaultValue: "cosigned",
+      },
+    },
+  });
+  if (!options) return;
+
+  const api = publicApi(options.apiUrl);
+  const tenantId = options.tenantId;
   const claim = await api.beginClaim(tenantId);
-  const verified = await api.verifyClaimCode(tenantId, claimCode);
+  const verified = await api.verifyClaimCode(tenantId, options.claimCode);
   const { credentials, generated } = claimCredentials();
 
   const completed = await api.completeClaim(tenantId, {
     claimTicket: verified.claimTicket,
-    userName: optionalEnv("HEDLES_USER_NAME") ?? verified.email,
-    mode: custodyMode(),
+    userName: options.userName ?? verified.email,
+    mode: choice(options.custodyMode, "--custody-mode", ["cosigned", "custodial"]),
     credential: {
       type: "apiKey",
       apiKeyPublicKey: credentials.publicKey,

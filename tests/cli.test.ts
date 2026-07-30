@@ -134,17 +134,15 @@ function testEnvironment(overrides: Record<string, string> = {}): Record<string,
   }
   return {
     ...environment,
-    HEDLES_API_URL: `http://127.0.0.1:${server.port}`,
     TURNKEY_API_PUBLIC_KEY: credentials.publicKey,
     TURNKEY_API_PRIVATE_KEY: credentials.privateKey,
-    TURNKEY_ORGANIZATION_ID: "",
     HEDLES_SESSION_TOKEN: "",
     ...overrides,
   };
 }
 
-async function run(script: string, environment: Record<string, string>): Promise<unknown> {
-  const child = Bun.spawn(["bun", "run", script], {
+async function run(script: string, args: string[], environment: Record<string, string>): Promise<unknown> {
+  const child = Bun.spawn(["bun", "run", script, ...args], {
     cwd: `${import.meta.dir}/..`,
     env: environment,
     stdout: "pipe",
@@ -161,50 +159,71 @@ async function run(script: string, environment: Record<string, string>): Promise
 
 describe("Bun example commands", () => {
   test("run independently through their complete HTTP flows", async () => {
-    const sessionResult = (await run("session", testEnvironment())) as { session: string };
+    const sessionResult = (await run(
+      "session",
+      ["--api-url", `http://127.0.0.1:${server.port}`],
+      testEnvironment(),
+    )) as { session: string };
     expect(sessionResult.session).toBe("hp_sess_cli");
 
     const claimResult = (await run(
       "claim",
-      testEnvironment({
-        HEDLES_TENANT_ID: tenantId,
-        HEDLES_CLAIM_CODE: "123456",
-        HEDLES_USER_NAME: "Example Owner",
-        HEDLES_CUSTODY_MODE: "cosigned",
-      }),
+      [
+        "--api-url",
+        `http://127.0.0.1:${server.port}`,
+        "--tenant-id",
+        tenantId,
+        "--claim-code",
+        "123456",
+        "--user-name",
+        "Example Owner",
+      ],
+      testEnvironment(),
     )) as { completed: { tenantId: string }; session: { session: string } };
     expect(claimResult.completed.tenantId).toBe(tenantId);
     expect(claimResult.session.session).toBe("hp_sess_cli");
 
     const walletResult = (await run(
       "wallet",
-      testEnvironment({
-        HEDLES_CHAIN_TYPE: "evm",
-        HEDLES_SESSION_TOKEN: "hp_sess_cli",
-      }),
+      ["--api-url", `http://127.0.0.1:${server.port}`],
+      testEnvironment({ HEDLES_SESSION_TOKEN: "hp_sess_cli" }),
     )) as { id: string };
     expect(walletResult.id).toBe("address-cli");
     expect(walletPhase).toBe(2);
 
     const payinResult = (await run(
       "payin",
-      testEnvironment({
-        HEDLES_CHAIN_KEY: "chain",
-        HEDLES_ASSET_KEY: "asset",
-        HEDLES_AMOUNT: "1000",
-      }),
+      [
+        "--api-url",
+        `http://127.0.0.1:${server.port}`,
+        "--chain",
+        "chain",
+        "--asset",
+        "asset",
+        "--amount",
+        "1000",
+      ],
+      testEnvironment(),
     )) as { id: string };
     expect(payinResult.id).toBe("payin-cli");
 
     const payoutResult = (await run(
       "payout",
-      testEnvironment({
-        HEDLES_CHAIN_KEY: "chain",
-        HEDLES_ASSET_KEY: "asset",
-        HEDLES_AMOUNT: "1000",
-        HEDLES_FROM_ADDRESS: "from",
-        HEDLES_TO_ADDRESS: "to",
-      }),
+      [
+        "--api-url",
+        `http://127.0.0.1:${server.port}`,
+        "--chain",
+        "chain",
+        "--asset",
+        "asset",
+        "--amount",
+        "1000",
+        "--from",
+        "from",
+        "--to",
+        "to",
+      ],
+      testEnvironment(),
     )) as { id: string; signing: unknown };
     expect(payoutResult.id).toBe("payout-cli");
     expect(payoutResult.signing).toBeNull();

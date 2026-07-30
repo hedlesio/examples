@@ -1,13 +1,21 @@
 import { obtainSession } from "../src/auth.ts";
-import { optionalEnv, turnkeyCredentials } from "../src/config.ts";
+import { authenticatedOptions, parseCommand } from "../src/cli.ts";
+import { turnkeyCredentials } from "../src/config.ts";
 import { printJson, publicApi, runExample } from "../src/runtime.ts";
 import { createTurnkeyStamper } from "../src/turnkey.ts";
 
 await runExample(async () => {
+  const options = parseCommand({
+    name: "session",
+    description: "Exchange a Turnkey-stamped identity proof for a Hedles session.",
+    options: authenticatedOptions,
+  });
+  if (!options) return;
+
   const session = await obtainSession(
-    publicApi(),
+    publicApi(options.apiUrl),
     createTurnkeyStamper(turnkeyCredentials()),
-    optionalEnv("TURNKEY_ORGANIZATION_ID"),
+    options.organizationId,
   );
   printJson(session);
 });
