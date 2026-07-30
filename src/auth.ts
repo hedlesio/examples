@@ -15,9 +15,9 @@ export async function obtainSession(
   return api.createSession(await stampIdentity(body, stamper));
 }
 
-export async function resolveSessionToken(api: SessionApi): Promise<string> {
+export async function resolveSessionToken(api: SessionApi, organizationId?: string): Promise<string> {
   const existing = optionalEnv("HEDLES_SESSION_TOKEN");
   if (existing) return existing;
   const stamper = createTurnkeyStamper(turnkeyCredentials());
-  return (await obtainSession(api, stamper, optionalEnv("TURNKEY_ORGANIZATION_ID"))).session;
+  return (await obtainSession(api, stamper, organizationId)).session;
 }

@@ -1,19 +1,62 @@
-import { optionalEnv, requiredEnv, turnkeyCredentials, uint32Env } from "../src/config.ts";
+import { authenticatedOptions, parseCommand, uint32 } from "../src/cli.ts";
+import { turnkeyCredentials } from "../src/config.ts";
 import { completePayoutSigning } from "../src/payout.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 import { createTurnkeyStamper } from "../src/turnkey.ts";
 
 await runExample(async () => {
-  const api = await authenticatedApi();
-  const note = optionalEnv("HEDLES_PAYOUT_NOTE");
-  const destinationTag = uint32Env("HEDLES_PAYOUT_DESTINATION_TAG");
+  const options = parseCommand({
+    name: "payout",
+    description: "Create and, when required, sign a payout.",
+    options: {
+      ...authenticatedOptions,
+      chain: {
+        description: "Enabled Hedles chain key",
+        valueName: "key",
+        required: true,
+      },
+      asset: {
+        description: "Enabled Hedles asset key",
+        valueName: "key",
+        required: true,
+      },
+      from: {
+        description: "Source wallet address",
+        valueName: "address",
+        required: true,
+      },
+      to: {
+        description: "Destination wallet address",
+        valueName: "address",
+        required: true,
+      },
+      amount: {
+        description: "Amount in atomic units, or all",
+        valueName: "amount",
+        required: true,
+      },
+      note: {
+        description: "Optional reconciliation note",
+        valueName: "note",
+      },
+      destinationTag: {
+        description: "Optional XRPL uint32 destination tag",
+        valueName: "tag",
+      },
+    },
+  });
+  if (!options) return;
+
+  const api = await authenticatedApi(options.apiUrl, options.organizationId);
+  const destinationTag =
+    options.destinationTag === undefined ? undefined : uint32(options.destinationTag, "--destination-tag");
   const payout = await api.createPayout({
-    chain: requiredEnv("HEDLES_CHAIN_KEY"),
-    asset: requiredEnv("HEDLES_ASSET_KEY"),
-    fromAddress: requiredEnv("HEDLES_FROM_ADDRESS"),
-    toAddress: requiredEnv("HEDLES_TO_ADDRESS"),
-    amount: requiredEnv("HEDLES_AMOUNT"),
-    ...(note ? { note } : {}),
+    chain: options.chain,
+    asset: options.asset,
+    fromAddress: options.from,
+    toAddress: options.to,
+    amount: options.amount,
+    ...(options.note ? { note: options.note } : {}),
     ...(destinationTag === undefined ? {} : { destinationTag }),
   });
 
