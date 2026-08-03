@@ -5,6 +5,8 @@ let server: ReturnType<typeof Bun.serve>;
 let api: HedlesApi;
 let lastAuthorization: string | null;
 let lastBody: unknown;
+let lastMerchantBody: unknown;
+let lastMerchantAuthorization: string | null;
 
 beforeAll(() => {
   server = Bun.serve({
@@ -29,6 +31,23 @@ beforeAll(() => {
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
+          });
+        },
+      },
+      "/v1/merchants": {
+        async POST(request) {
+          lastMerchantAuthorization = request.headers.get("Authorization");
+          lastMerchantBody = await request.json();
+          return Response.json({
+            id: "merchant-1",
+            name: "Example Merchant",
+            email: "owner@example.com",
+            claimUrl: "https://dev.hedles.io/claim?tenantId=merchant-1",
+            claimEmailSent: false,
+            externalClaimDelivery: {
+              code: "123456",
+              expiresAt: "2026-07-31T00:00:00.000Z",
+            },
           });
         },
       },
@@ -65,5 +84,21 @@ describe("HedlesApi", () => {
 
   test("surfaces structured API errors", async () => {
     await expect(api.getPayout("error")).rejects.toEqual(new HedlesApiError(422, { code: "example_error" }));
+  });
+
+  test("requests self-managed OTP delivery when creating a merchant", async () => {
+    const result = await api.createMerchant({
+      name: "Example Merchant",
+      email: "owner@example.com",
+      externalClaimDelivery: true,
+    });
+
+    expect(result.externalClaimDelivery?.code).toBe("123456");
+    expect(lastMerchantAuthorization).toBe("Bearer hp_sess_test");
+    expect(lastMerchantBody).toEqual({
+      name: "Example Merchant",
+      email: "owner@example.com",
+      externalClaimDelivery: true,
+    });
   });
 });

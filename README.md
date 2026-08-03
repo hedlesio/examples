@@ -46,6 +46,25 @@ Defaults: owner name to the verified email and custody mode to `cosigned`. Use
 If no API keys are configured, the command generates a pair and prints the private key once. Store it
 immediately.
 
+### Onboard a merchant with a self-managed OTP
+
+This command is for a platform explicitly allowlisted by Hedles for external claim delivery. The authenticated
+user must be an Admin, and the new merchant is created directly under that platform.
+
+```sh
+bun run merchant-otp \
+  --name "Example Merchant" \
+  --email owner@example.com
+```
+
+The API does not send an email. The command prints the merchant ID and a delivery object containing the
+pre-registered email, claim URL, one-time code, and `expiresAt`, followed by the exact `bun run claim` command
+the merchant can use after receiving the code.
+
+Send the delivery through your own trusted channel. A transport retry must reuse the same returned code.
+Calling the authenticated resend-claim endpoint is an intentional rotation that invalidates the previous code.
+The public claim/send-code endpoint never returns a code.
+
 ### Create a session
 
 ```sh

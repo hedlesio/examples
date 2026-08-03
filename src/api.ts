@@ -1,6 +1,8 @@
 import type {
   ClaimResponse,
   CreateAddressResponse,
+  CreateMerchantInput,
+  CreateMerchantResponse,
   CreatePayinInput,
   CreatePayoutInput,
   PayinResponse,
@@ -85,6 +87,13 @@ export class HedlesApi {
     },
   ): Promise<ClaimResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/complete`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  createMerchant(input: CreateMerchantInput): Promise<CreateMerchantResponse> {
+    return this.request("/v1/merchants", {
       method: "POST",
       body: JSON.stringify(input),
     });

@@ -32,6 +32,35 @@ export interface ClaimResponse {
   mode: "custodial" | "cosigned";
 }
 
+export interface CreateMerchantInput {
+  name: string;
+  email: string;
+  externalClaimDelivery: true;
+}
+
+export interface ExternalClaimDelivery {
+  code: string;
+  expiresAt: string;
+}
+
+export interface CreateMerchantResponse {
+  id: string;
+  kind: "merchant";
+  parentTenantId: string | null;
+  name: string;
+  email: string | null;
+  status: "active" | "suspended" | "archived";
+  custodyAttestationId: string | null;
+  custodyAttestedByTenantId: string | null;
+  custodyAttestedAt: string | null;
+  claimed: boolean;
+  claimUrl: string;
+  createdAt: string;
+  omnibusAddress: string | null;
+  claimEmailSent: boolean;
+  externalClaimDelivery: ExternalClaimDelivery | null;
+}
+
 export interface AddressEntry {
   id: string;
   tenant_id: string;
