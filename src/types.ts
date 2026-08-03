@@ -32,6 +32,28 @@ export interface ClaimResponse {
   mode: "custodial" | "cosigned";
 }
 
+export interface BeginClaimResponse {
+  tenantId: string;
+  tenantName: string;
+  tenantKind: "platform" | "merchant";
+}
+
+export interface VerifyClaimCodeResponse {
+  claimTicket: string;
+  email: string;
+}
+
+export interface CompleteClaimInput {
+  claimTicket: string;
+  userName: string;
+  mode: "custodial" | "cosigned";
+  credential: {
+    type: "apiKey";
+    apiKeyPublicKey: string;
+    curveType: "API_KEY_CURVE_P256";
+  };
+}
+
 export interface CreateMerchantInput {
   name: string;
   email: string;
@@ -41,6 +63,16 @@ export interface CreateMerchantInput {
 export interface ExternalClaimDelivery {
   code: string;
   expiresAt: string;
+}
+
+export interface ClaimDeliveryResponse {
+  claimUrl: string;
+  claimEmailSent: boolean;
+  externalClaimDelivery: ExternalClaimDelivery | null;
+}
+
+export interface ResendClaimResponse extends ClaimDeliveryResponse {
+  tooSoon?: boolean;
 }
 
 export interface CreateMerchantResponse {

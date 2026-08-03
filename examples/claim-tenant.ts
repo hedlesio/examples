@@ -1,9 +1,8 @@
 import { generateP256KeyPair } from "@turnkey/crypto";
-import { obtainSession } from "../src/auth.ts";
+import { completeTenantClaim } from "../src/claim.ts";
 import { apiOptions, choice, parseCommand } from "../src/cli.ts";
 import { optionalEnv } from "../src/config.ts";
 import { printJson, publicApi, runExample } from "../src/runtime.ts";
-import { createTurnkeyStamper } from "../src/turnkey.ts";
 import type { TurnkeyCredentials } from "../src/types.ts";
 
 function claimCredentials(): { credentials: TurnkeyCredentials; generated: boolean } {
@@ -56,29 +55,17 @@ await runExample(async () => {
   });
   if (!options) return;
 
-  const api = publicApi(options.apiUrl);
-  const tenantId = options.tenantId;
-  const claim = await api.beginClaim(tenantId);
-  const verified = await api.verifyClaimCode(tenantId, options.claimCode);
   const { credentials, generated } = claimCredentials();
-
-  const completed = await api.completeClaim(tenantId, {
-    claimTicket: verified.claimTicket,
-    userName: options.userName ?? verified.email,
-    mode: choice(options.custodyMode, "--custody-mode", ["cosigned", "custodial"]),
-    credential: {
-      type: "apiKey",
-      apiKeyPublicKey: credentials.publicKey,
-      curveType: "API_KEY_CURVE_P256",
-    },
+  const result = await completeTenantClaim(publicApi(options.apiUrl), {
+    tenantId: options.tenantId,
+    claimCode: options.claimCode,
+    ...(options.userName ? { userName: options.userName } : {}),
+    custodyMode: choice(options.custodyMode, "--custody-mode", ["cosigned", "custodial"]),
+    credentials,
   });
-
-  const session = await obtainSession(api, createTurnkeyStamper(credentials));
   printJson({
-    claim,
-    completed,
+    ...result,
     credentials: generated ? credentials : { publicKey: credentials.publicKey, source: "environment" },
-    session,
   });
 
   if (generated) {

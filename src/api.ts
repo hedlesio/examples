@@ -1,5 +1,7 @@
 import type {
+  BeginClaimResponse,
   ClaimResponse,
+  CompleteClaimInput,
   CreateAddressResponse,
   CreateMerchantInput,
   CreateMerchantResponse,
@@ -7,9 +9,11 @@ import type {
   CreatePayoutInput,
   PayinResponse,
   PayoutResponse,
+  ResendClaimResponse,
   SessionResponse,
   SignedIdentityRequest,
   SignedTurnkeyActivity,
+  VerifyClaimCodeResponse,
 } from "./types.ts";
 
 interface ApiErrorBody {
@@ -54,7 +58,7 @@ export class HedlesApi {
     });
   }
 
-  beginClaim(tenantId: string): Promise<{ tenantId: string; tenantName: string; tenantKind: string }> {
+  beginClaim(tenantId: string): Promise<BeginClaimResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/begin`, {
       method: "POST",
     });
@@ -66,26 +70,14 @@ export class HedlesApi {
     });
   }
 
-  verifyClaimCode(tenantId: string, code: string): Promise<{ claimTicket: string; email: string }> {
+  verifyClaimCode(tenantId: string, code: string): Promise<VerifyClaimCodeResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/verify-code`, {
       method: "POST",
       body: JSON.stringify({ code }),
     });
   }
 
-  completeClaim(
-    tenantId: string,
-    input: {
-      claimTicket: string;
-      userName: string;
-      mode: "custodial" | "cosigned";
-      credential: {
-        type: "apiKey";
-        apiKeyPublicKey: string;
-        curveType: "API_KEY_CURVE_P256";
-      };
-    },
-  ): Promise<ClaimResponse> {
+  completeClaim(tenantId: string, input: CompleteClaimInput): Promise<ClaimResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/complete`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -96,6 +88,13 @@ export class HedlesApi {
     return this.request("/v1/merchants", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  }
+
+  resendClaim(tenantId: string): Promise<ResendClaimResponse> {
+    return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/resend-claim`, {
+      method: "POST",
+      body: JSON.stringify({ externalClaimDelivery: true }),
     });
   }
 

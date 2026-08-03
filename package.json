@@ -13,6 +13,7 @@
   "scripts": {
     "claim": "bun examples/claim-tenant.ts",
     "merchant-otp": "bun examples/onboard-merchant-with-otp.ts",
+    "merchant-otp-renew": "bun examples/renew-merchant-otp.ts",
     "session": "bun examples/get-session.ts",
     "wallet": "bun examples/create-wallet.ts",
     "payin": "bun examples/create-payin.ts",
