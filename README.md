@@ -46,7 +46,7 @@ Defaults: owner name to the verified email and custody mode to `cosigned`. Use
 If no API keys are configured, the command generates a pair and prints the private key once. Store it
 immediately.
 
-### Onboard a merchant with a self-managed OTP
+### Onboard and claim a merchant with a self-managed OTP
 
 This command is for a platform explicitly allowlisted by Hedles for external claim delivery. The authenticated
 user must be an Admin, and the new merchant is created directly under that platform.
@@ -54,16 +54,51 @@ user must be an Admin, and the new merchant is created directly under that platf
 ```sh
 bun run merchant-otp \
   --name "Example Merchant" \
-  --email owner@example.com
+  --email owner@example.com \
+  --user-name "Example Owner"
 ```
 
-The API does not send an email. The command prints the merchant ID and a delivery object containing the
-pre-registered email, claim URL, one-time code, and `expiresAt`, followed by the exact `bun run claim` command
-the merchant can use after receiving the code.
+The command runs the complete example: the platform creates the directly owned merchant, receives the OTP,
+builds the payload its provider must send to the pre-registered email, verifies that same code as the merchant,
+completes the claim with a newly generated P-256 API key, and obtains the merchant's first session. It prints the
+delivery payload and the new merchant credentials once. Store the private key immediately.
+
+The example uses the returned delivery object directly so it remains runnable without choosing an email vendor.
+In production, send that object through the partner's provider and perform the `claim` command when the merchant
+submits the code. Do not accept a replacement email address or claim URL from the caller.
+
+```mermaid
+sequenceDiagram
+    participant Platform
+    participant Hedles
+    participant Provider
+    participant Merchant
+    Platform->>Hedles: Create merchant (externalClaimDelivery=true)
+    Hedles-->>Platform: claimUrl, OTP, expiresAt
+    Platform->>Provider: Send fixed email + claim payload
+    Provider-->>Merchant: Claim link and OTP
+    Merchant->>Hedles: Begin claim, verify OTP, complete claim
+    Hedles-->>Merchant: Claimed organization and session
+```
 
 Send the delivery through your own trusted channel. A transport retry must reuse the same returned code.
 Calling the authenticated resend-claim endpoint is an intentional rotation that invalidates the previous code.
 The public claim/send-code endpoint never returns a code.
+
+### Renew an expired self-managed OTP
+
+Claim OTPs expire after 24 hours. The API rejects an expired code with HTTP 401 and
+`reason: "invalid_or_expired_code"`, then deletes it. An allowlisted platform Admin can rotate it for a directly
+owned, unclaimed merchant:
+
+```sh
+bun run merchant-otp-renew --tenant-id your-merchant-uuid
+```
+
+The response contains the new code and `expiresAt`; the previous code is invalid. OTP issuance has a 60-second
+cooldown. During that window the command reports `rotated: false` and `existingCodeStillValid: true`, because no
+new code is returned and the existing code remains valid. Keep the original delivery until it expires or is
+successfully rotated.
 
 ### Create a session
 

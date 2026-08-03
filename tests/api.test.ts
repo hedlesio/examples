@@ -7,6 +7,7 @@ let lastAuthorization: string | null;
 let lastBody: unknown;
 let lastMerchantBody: unknown;
 let lastMerchantAuthorization: string | null;
+let lastResendBody: unknown;
 
 beforeAll(() => {
   server = Bun.serve({
@@ -47,6 +48,19 @@ beforeAll(() => {
             externalClaimDelivery: {
               code: "123456",
               expiresAt: "2026-07-31T00:00:00.000Z",
+            },
+          });
+        },
+      },
+      "/v1/tenants/merchant-1/resend-claim": {
+        async POST(request) {
+          lastResendBody = await request.json();
+          return Response.json({
+            claimUrl: "https://dev.hedles.io/claim?tenantId=merchant-1",
+            claimEmailSent: false,
+            externalClaimDelivery: {
+              code: "654321",
+              expiresAt: "2026-08-01T00:00:00.000Z",
             },
           });
         },
@@ -100,5 +114,12 @@ describe("HedlesApi", () => {
       email: "owner@example.com",
       externalClaimDelivery: true,
     });
+  });
+
+  test("requests a rotated OTP from the authenticated resend route", async () => {
+    const result = await api.resendClaim("merchant-1");
+
+    expect(result.externalClaimDelivery?.code).toBe("654321");
+    expect(lastResendBody).toEqual({ externalClaimDelivery: true });
   });
 });

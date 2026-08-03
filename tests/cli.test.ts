@@ -7,6 +7,10 @@ const credentials = generateP256KeyPair();
 let server: ReturnType<typeof Bun.serve>;
 let walletPhase = 0;
 let merchantOtpBody: unknown;
+let merchantClaimCodeBody: unknown;
+let merchantCompleteClaimBody: unknown;
+let resendOtpBody: unknown;
+let resendPhase = 0;
 
 function session() {
   return {
@@ -67,10 +71,38 @@ beforeAll(() => {
           }),
       },
       [`/v1/tenants/${tenantId}/claim/verify-code`]: {
-        POST: () => Response.json({ claimTicket: "hp_claim_test", email: "owner@example.com" }),
+        async POST(request) {
+          merchantClaimCodeBody = await request.json();
+          return Response.json({ claimTicket: "hp_claim_test", email: "owner@example.com" });
+        },
       },
       [`/v1/tenants/${tenantId}/claim/complete`]: {
-        POST: () => Response.json({ tenantId, rootUserId: "turnkey-user", mode: "cosigned" }),
+        async POST(request) {
+          merchantCompleteClaimBody = await request.json();
+          return Response.json({ tenantId, rootUserId: "turnkey-user", mode: "cosigned" });
+        },
+      },
+      [`/v1/tenants/${tenantId}/resend-claim`]: {
+        async POST(request) {
+          resendOtpBody = await request.json();
+          resendPhase += 1;
+          if (resendPhase > 1) {
+            return Response.json({
+              claimUrl: `https://dev.hedles.io/claim?tenantId=${tenantId}`,
+              claimEmailSent: false,
+              tooSoon: true,
+              externalClaimDelivery: null,
+            });
+          }
+          return Response.json({
+            claimUrl: `https://dev.hedles.io/claim?tenantId=${tenantId}`,
+            claimEmailSent: false,
+            externalClaimDelivery: {
+              code: "765432",
+              expiresAt: "2026-08-01T00:00:00.000Z",
+            },
+          });
+        },
       },
       "/v1/addresses": {
         async POST(request) {
@@ -118,7 +150,7 @@ beforeAll(() => {
         async POST(request) {
           merchantOtpBody = await request.json();
           return Response.json({
-            id: "merchant-cli",
+            id: tenantId,
             name: "OTP Merchant",
             email: "otp-owner@example.com",
             claimUrl: `https://dev.hedles.io/claim?tenantId=${tenantId}`,
@@ -214,9 +246,10 @@ describe("Bun example commands", () => {
     )) as {
       merchant: { id: string };
       delivery: { claimUrl: string; code: string; expiresAt: string };
-      nextCommand: string;
+      claimed: { completed: { tenantId: string }; session: { session: string } };
+      credentials: { publicKey: string; privateKey: string };
     };
-    expect(merchantOtpResult.merchant.id).toBe("merchant-cli");
+    expect(merchantOtpResult.merchant.id).toBe(tenantId);
     expect(merchantOtpBody).toEqual({
       name: "OTP Merchant",
       email: "otp-owner@example.com",
@@ -225,9 +258,40 @@ describe("Bun example commands", () => {
     expect(merchantOtpResult.delivery.claimUrl).toContain(`tenantId=${tenantId}`);
     expect(merchantOtpResult.delivery.code).toBe("654321");
     expect(merchantOtpResult.delivery.expiresAt).toBe("2026-07-31T00:00:00.000Z");
-    expect(merchantOtpResult.nextCommand).toContain(
-      "bun run claim --tenant-id merchant-cli --claim-code 654321",
-    );
+    expect(merchantClaimCodeBody).toEqual({ code: "654321" });
+    expect(merchantCompleteClaimBody).toEqual({
+      claimTicket: "hp_claim_test",
+      userName: "owner@example.com",
+      mode: "cosigned",
+      credential: {
+        type: "apiKey",
+        apiKeyPublicKey: merchantOtpResult.credentials.publicKey,
+        curveType: "API_KEY_CURVE_P256",
+      },
+    });
+    expect(merchantOtpResult.claimed.completed.tenantId).toBe(tenantId);
+    expect(merchantOtpResult.claimed.session.session).toBe("hp_sess_cli");
+
+    const renewedOtpResult = (await run(
+      "merchant-otp-renew",
+      ["--api-url", `http://127.0.0.1:${server.port}`, "--tenant-id", tenantId],
+      testEnvironment(),
+    )) as { rotated: boolean; delivery: { code: string; expiresAt: string } };
+    expect(resendOtpBody).toEqual({ externalClaimDelivery: true });
+    expect(renewedOtpResult.rotated).toBe(true);
+    expect(renewedOtpResult.delivery.code).toBe("765432");
+    expect(renewedOtpResult.delivery.expiresAt).toBe("2026-08-01T00:00:00.000Z");
+
+    const cooldownResult = (await run(
+      "merchant-otp-renew",
+      ["--api-url", `http://127.0.0.1:${server.port}`, "--tenant-id", tenantId],
+      testEnvironment(),
+    )) as { rotated: boolean; reason: string; existingCodeStillValid: boolean };
+    expect(cooldownResult).toMatchObject({
+      rotated: false,
+      reason: "otp_cooldown",
+      existingCodeStillValid: true,
+    });
 
     const walletResult = (await run(
       "wallet",

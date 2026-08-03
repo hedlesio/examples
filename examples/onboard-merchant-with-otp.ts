@@ -1,10 +1,12 @@
-import { authenticatedOptions, parseCommand } from "../src/cli.ts";
-import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
+import { generateP256KeyPair } from "@turnkey/crypto";
+import { completeTenantClaim, requireExternalClaimDelivery } from "../src/claim.ts";
+import { authenticatedOptions, choice, parseCommand } from "../src/cli.ts";
+import { authenticatedApi, printJson, publicApi, runExample } from "../src/runtime.ts";
 
 await runExample(async () => {
   const options = parseCommand({
     name: "merchant-otp",
-    description: "Create a directly owned merchant and receive its claim OTP for external delivery.",
+    description: "Create a merchant, expose its external OTP delivery, claim it, and open its first session.",
     options: {
       ...authenticatedOptions,
       name: {
@@ -17,6 +19,15 @@ await runExample(async () => {
         valueName: "email",
         required: true,
       },
+      userName: {
+        description: "Merchant owner name; defaults to verified email",
+        valueName: "name",
+      },
+      custodyMode: {
+        description: "Merchant custody mode",
+        valueName: "mode",
+        defaultValue: "cosigned",
+      },
     },
   });
   if (!options) return;
@@ -26,9 +37,15 @@ await runExample(async () => {
     email: options.email,
     externalClaimDelivery: true,
   });
-  if (!merchant.externalClaimDelivery || !merchant.claimUrl || merchant.claimEmailSent) {
-    throw new Error("The API did not return a self-managed claim delivery");
-  }
+  const delivery = requireExternalClaimDelivery(merchant);
+  const credentials = generateP256KeyPair();
+  const claimed = await completeTenantClaim(publicApi(options.apiUrl), {
+    tenantId: merchant.id,
+    claimCode: delivery.code,
+    ...(options.userName ? { userName: options.userName } : {}),
+    custodyMode: choice(options.custodyMode, "--custody-mode", ["cosigned", "custodial"]),
+    credentials,
+  });
 
   printJson({
     merchant: {
@@ -38,10 +55,13 @@ await runExample(async () => {
     },
     delivery: {
       email: options.email,
-      claimUrl: merchant.claimUrl,
-      code: merchant.externalClaimDelivery.code,
-      expiresAt: merchant.externalClaimDelivery.expiresAt,
+      ...delivery,
     },
-    nextCommand: `bun run claim --tenant-id ${merchant.id} --claim-code ${merchant.externalClaimDelivery.code}`,
+    claimed,
+    credentials,
   });
+
+  console.error(
+    "A new merchant private key was printed once. Store it securely before closing this terminal.",
+  );
 });
