@@ -12,6 +12,7 @@
   "packageManager": "bun@1.3.14",
   "scripts": {
     "claim": "bun examples/claim-tenant.ts",
+    "merchant-otp": "bun examples/onboard-merchant-with-otp.ts",
     "session": "bun examples/get-session.ts",
     "wallet": "bun examples/create-wallet.ts",
     "payin": "bun examples/create-payin.ts",

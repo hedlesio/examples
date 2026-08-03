@@ -6,6 +6,7 @@ const userId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const credentials = generateP256KeyPair();
 let server: ReturnType<typeof Bun.serve>;
 let walletPhase = 0;
+let merchantOtpBody: unknown;
 
 function session() {
   return {
@@ -113,6 +114,22 @@ beforeAll(() => {
             expiresAt: "2026-07-30T01:00:00.000Z",
           }),
       },
+      "/v1/merchants": {
+        async POST(request) {
+          merchantOtpBody = await request.json();
+          return Response.json({
+            id: "merchant-cli",
+            name: "OTP Merchant",
+            email: "otp-owner@example.com",
+            claimUrl: `https://dev.hedles.io/claim?tenantId=${tenantId}`,
+            claimEmailSent: false,
+            externalClaimDelivery: {
+              code: "654321",
+              expiresAt: "2026-07-31T00:00:00.000Z",
+            },
+          });
+        },
+      },
       "/v1/payouts": {
         POST: () => Response.json(payout(true)),
       },
@@ -182,6 +199,35 @@ describe("Bun example commands", () => {
     )) as { completed: { tenantId: string }; session: { session: string } };
     expect(claimResult.completed.tenantId).toBe(tenantId);
     expect(claimResult.session.session).toBe("hp_sess_cli");
+
+    const merchantOtpResult = (await run(
+      "merchant-otp",
+      [
+        "--api-url",
+        `http://127.0.0.1:${server.port}`,
+        "--name",
+        "OTP Merchant",
+        "--email",
+        "otp-owner@example.com",
+      ],
+      testEnvironment(),
+    )) as {
+      merchant: { id: string };
+      delivery: { claimUrl: string; code: string; expiresAt: string };
+      nextCommand: string;
+    };
+    expect(merchantOtpResult.merchant.id).toBe("merchant-cli");
+    expect(merchantOtpBody).toEqual({
+      name: "OTP Merchant",
+      email: "otp-owner@example.com",
+      externalClaimDelivery: true,
+    });
+    expect(merchantOtpResult.delivery.claimUrl).toContain(`tenantId=${tenantId}`);
+    expect(merchantOtpResult.delivery.code).toBe("654321");
+    expect(merchantOtpResult.delivery.expiresAt).toBe("2026-07-31T00:00:00.000Z");
+    expect(merchantOtpResult.nextCommand).toContain(
+      "bun run claim --tenant-id merchant-cli --claim-code 654321",
+    );
 
     const walletResult = (await run(
       "wallet",
