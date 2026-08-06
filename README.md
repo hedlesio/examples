@@ -25,6 +25,7 @@ Commands default to `https://api-dev.hedles.io`. Production operations are real:
 | `HEDLES_SESSION_TOKEN` | Existing bearer token |
 | `HEDLES_API_PUBLIC_KEY` | Compressed P-256 public key |
 | `HEDLES_API_PRIVATE_KEY` | 32-byte P-256 private key in hex |
+| `HEDLES_WEBHOOK_SECRET` | Signing secret of the webhook endpoint |
 
 Authenticated commands use `HEDLES_SESSION_TOKEN` when set; otherwise they create a session with the API
 key pair. Wallet creation and cosigned payouts may still need the key pair to sign activities.
@@ -91,6 +92,43 @@ bun run payout \
 
 `--note` is optional. XRPL supports `--destination-tag <uint32>`. When required, the command signs each
 exact activity body and handles up to two stages.
+
+### Receive and verify webhooks
+
+```sh
+bun run webhooks
+bun run webhooks --port 9000 --path /hooks
+```
+
+Runs a receiver on `http://localhost:8787/webhooks/hedles` that verifies every delivery before acting on it.
+Register the endpoint with `POST /v1/webhooks` (`url`, `events`, and a `secret` of at least 32 characters), and
+put that same secret in `HEDLES_WEBHOOK_SECRET`. To reach a local receiver from the API, expose it with
+`cloudflared tunnel --url http://localhost:8787` and register the tunnel URL.
+
+Each delivery carries three headers:
+
+| Header | Meaning |
+| --- | --- |
+| `X-Hedles-Signature` | `t=<unix seconds>,v1=<hex>` |
+| `X-Hedles-Event` | Event type, e.g. `payin.confirmed` |
+| `X-Hedles-Idempotency-Key` | Stable across retries and replays of the same event |
+
+`v1` is `HMAC-SHA256(secret, "<t>.<raw body>")` in hex. Verification, in `src/webhooks.ts`, is four steps:
+
+1. Read the **raw** body as text. Re-serializing the parsed JSON changes key order and whitespace, and the
+   signature no longer matches.
+2. Reject a `t` outside a 300-second tolerance. The signature never expires on its own, so the timestamp check
+   is what prevents a captured delivery from being replayed later.
+3. Recompute the HMAC over `` `${t}.${rawBody}` `` and compare it in constant time.
+4. Only then parse the JSON and act on it.
+
+Delivery is at-least-once. A non-2xx response or a response slower than 10 seconds is retried up to 6 attempts
+(1m, 5m, 30m, 2h, 8h), and an operator can replay a delivery from the dashboard — every one of those repeats
+carries the original idempotency key, so key side effects on it. Acknowledge with a 2xx immediately and do the
+work afterwards.
+
+Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payout.created`, `payout.broadcast`,
+`payout.settled`, `payout.failed`.
 
 ## Shared options
 

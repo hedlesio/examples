@@ -138,3 +138,47 @@ export interface PayoutResponse {
   settledAt: string | null;
   signing: PayoutSigningState | null;
 }
+
+export type WebhookEvent =
+  | {
+      event: "payin.pending";
+      data: { payinId: string; txHash: string; amount: string; chain: string; fromAddress: string | null };
+    }
+  | {
+      event: "payin.confirmed";
+      data: {
+        payinId: string;
+        txHash: string;
+        blockNumber: number;
+        confirmations: number;
+        chain: string;
+        fromAddress: string | null;
+      };
+    }
+  | {
+      event: "payin.expired";
+      data: { payinId: string };
+    }
+  | {
+      event: "payout.created";
+      data: {
+        payoutId: string;
+        amount: string;
+        chain: string;
+        asset: string;
+        fromAddress: string;
+        toAddress: string;
+      };
+    }
+  | {
+      event: "payout.broadcast";
+      data: { payoutId: string; txHash: string; amount: string; chain: string; asset: string };
+    }
+  | {
+      event: "payout.settled";
+      data: { payoutId: string; txHash: string; amount: string; chain: string; asset: string };
+    }
+  | {
+      event: "payout.failed";
+      data: { payoutId: string; amount: string; chain: string; asset: string; reason: string };
+    };

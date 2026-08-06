@@ -16,6 +16,7 @@
     "wallet": "bun examples/create-wallet.ts",
     "payin": "bun examples/create-payin.ts",
     "payout": "bun examples/create-payout.ts",
+    "webhooks": "bun examples/receive-webhooks.ts",
     "typecheck": "bunx tsc --noEmit",
     "lint": "bunx biome check .",
     "format": "bunx biome check --write .",
