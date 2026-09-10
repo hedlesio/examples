@@ -41,6 +41,6 @@ await runExample(async () => {
 
   printJson(swap);
   console.error(
-    `\nTrack execution with: GET /v1/swaps/${swap.id} (statuses: pending, executing, executed, failed)`,
+    `\nTrack execution with: GET /v1/swaps/${swap.id} (statuses: pending, executing, executed, expired, failed)`,
   );
 });
