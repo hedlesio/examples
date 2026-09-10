@@ -178,7 +178,7 @@ export interface AcceptSwapQuoteInput {
 export interface SwapResponse {
   id: string;
   quoteId: string;
-  status: "pending" | "executing" | "executed" | "failed";
+  status: "pending" | "executing" | "executed" | "expired" | "failed";
   fromChain: string;
   fromAsset: string;
   toChain: string;

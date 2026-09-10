@@ -161,8 +161,9 @@ bun run swap-accept \
 
 The `transaction` must be resubmitted byte-for-byte unchanged; the API verifies byte-equality against the
 quoted transaction, broadcasts the deposit, and executes at the quoted terms once the deposit confirms.
-Track the returned swap through `pending`, `executing`, and `executed` (or `failed` with a bounded
-`failureReason`) via `GET /v1/swaps/:id`. An expired quote cannot be accepted — request a fresh one rather
+Track the returned swap via `GET /v1/swaps/:id` through `pending`, `executing`, and `executed` — a swap
+whose deposit never confirms before the deadline ends `expired`, and other terminal errors end `failed`
+with a bounded `failureReason`. An expired quote cannot be accepted — request a fresh one rather
 than re-signing stale bytes.
 
 ## Shared options
