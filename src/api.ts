@@ -1,13 +1,17 @@
 import type {
+  AcceptSwapQuoteInput,
   ClaimResponse,
   CreateAddressResponse,
   CreatePayinInput,
   CreatePayoutInput,
   PayinResponse,
   PayoutResponse,
+  RequestSwapQuoteInput,
   SessionResponse,
   SignedIdentityRequest,
   SignedTurnkeyActivity,
+  SwapQuoteResponse,
+  SwapResponse,
 } from "./types.ts";
 
 interface ApiErrorBody {
@@ -123,6 +127,28 @@ export class HedlesApi {
       method: "POST",
       body: JSON.stringify({ requests }),
     });
+  }
+
+  requestSwapQuote(input: RequestSwapQuoteInput): Promise<SwapQuoteResponse> {
+    return this.request("/v1/swaps/quotes", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  getSwapQuote(quoteId: string): Promise<SwapQuoteResponse> {
+    return this.request(`/v1/swaps/quotes/${encodeURIComponent(quoteId)}`);
+  }
+
+  acceptSwapQuote(input: AcceptSwapQuoteInput): Promise<SwapResponse> {
+    return this.request("/v1/swaps", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  getSwap(swapId: string): Promise<SwapResponse> {
+    return this.request(`/v1/swaps/${encodeURIComponent(swapId)}`);
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
