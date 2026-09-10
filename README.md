@@ -1,6 +1,6 @@
 # Hedles API examples
 
-Bun + TypeScript examples for tenant claims, sessions, wallets, pay-ins, and payouts.
+Bun + TypeScript examples for tenant claims, sessions, wallets, pay-ins, payouts, and swaps.
 
 ## Quick start
 
@@ -129,6 +129,41 @@ work afterwards.
 
 Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payout.created`, `payout.broadcast`,
 `payout.settled`, `payout.failed`.
+
+### Swap between assets (preview)
+
+> Swaps are a preview surface: the API documents the full RFQ contract but currently answers
+> `501 not_implemented` in every environment. These commands are ready for when execution is enabled.
+
+A swap is a request-for-quote flow that never takes custody of your keys. Request a firm quote:
+
+```sh
+bun run swap-quote \
+  --from-chain eip155:11155111 --from-asset USDC \
+  --to-chain solana:devnet --to-asset SOL \
+  --amount 25000000 --side from \
+  --from-address 0xYourWalletAddress
+```
+
+The quote returns firm terms (`fromAmount`, `toAmount`, `rate`, `feeAmount`), a `depositAddress`
+(plus `depositMemo` where the chain needs one), an unsigned deposit `transaction` already built to pay it,
+a binding `token`, and an `expiresAt` deadline. `--side to` fixes the bought leg instead and lets the quote
+resolve what you must sell.
+
+Sign the `transaction` bytes with the wallet that controls `--from-address` — amount, destination, and memo
+are fixed by construction, so no chain-specific handling is needed — then accept before the quote expires:
+
+```sh
+bun run swap-accept \
+  --quote-id <id> --token <token> \
+  --transaction <transaction> --signature <hex>
+```
+
+The `transaction` must be resubmitted byte-for-byte unchanged; the API verifies byte-equality against the
+quoted transaction, broadcasts the deposit, and executes at the quoted terms once the deposit confirms.
+Track the returned swap through `pending`, `executing`, and `executed` (or `failed` with a bounded
+`failureReason`) via `GET /v1/swaps/:id`. An expired quote cannot be accepted — request a fresh one rather
+than re-signing stale bytes.
 
 ## Shared options
 

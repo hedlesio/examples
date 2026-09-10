@@ -139,6 +139,62 @@ export interface PayoutResponse {
   signing: PayoutSigningState | null;
 }
 
+export interface RequestSwapQuoteInput {
+  fromChain: string;
+  fromAsset: string;
+  toChain: string;
+  toAsset: string;
+  amount: string;
+  side?: "from" | "to";
+  fromAddress: string;
+}
+
+export interface SwapQuoteResponse {
+  id: string;
+  status: "active" | "expired" | "accepted";
+  fromChain: string;
+  fromAsset: string;
+  toChain: string;
+  toAsset: string;
+  fromAmount: string;
+  toAmount: string;
+  rate: string;
+  feeAmount: string;
+  depositAddress: string;
+  depositMemo: string | null;
+  transaction: string;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface AcceptSwapQuoteInput {
+  quoteId: string;
+  token: string;
+  transaction: string;
+  signature: string;
+}
+
+export interface SwapResponse {
+  id: string;
+  quoteId: string;
+  status: "pending" | "executing" | "executed" | "failed";
+  fromChain: string;
+  fromAsset: string;
+  toChain: string;
+  toAsset: string;
+  fromAmount: string;
+  toAmount: string;
+  rate: string;
+  feeAmount: string;
+  depositAddress: string;
+  depositTxHash: string | null;
+  venueOrderId: string | null;
+  failureReason: string | null;
+  executedAt: string | null;
+  createdAt: string;
+}
+
 export type WebhookEvent =
   | {
       event: "payin.pending";
