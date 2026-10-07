@@ -3,9 +3,11 @@ import { generateP256KeyPair } from "@turnkey/crypto";
 
 const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const userId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const signingRequestId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const credentials = generateP256KeyPair();
 let server: ReturnType<typeof Bun.serve>;
-let walletPhase = 0;
+let walletCalls = 0;
+let signatureSubmissions: unknown[] = [];
 
 function session() {
   return {
@@ -17,7 +19,7 @@ function session() {
   };
 }
 
-function payout(signing: boolean) {
+function payout(complete: boolean) {
   return {
     id: "payout-cli",
     chain: "chain",
@@ -25,27 +27,36 @@ function payout(signing: boolean) {
     fromAddress: "from",
     toAddress: "to",
     amount: "1000",
-    kind: "direct",
-    status: signing ? "prepared" : "broadcast",
-    unsignedTx: signing ? "unsigned" : null,
-    txHash: signing ? null : "0xhash",
-    note: null,
+    feeTotal: null,
+    kind: "payout",
+    status: complete ? "broadcast" : "pending",
+    unsignedTx: complete ? null : "unsigned",
+    signedTx: null,
+    txHash: complete ? "0xhash" : null,
+    nonce: null,
+    confirmations: 0,
+    requiredConfirmations: 1,
+    reference: null,
+    lastError: null,
+    transfers: [
+      {
+        id: "transfer-cli",
+        position: 0,
+        kind: "recipient",
+        asset: "asset",
+        fromAddress: "from",
+        toAddress: "to",
+        amount: "1000",
+        status: "pending",
+        error: null,
+        createdAt: "2026-07-30T00:00:00.000Z",
+        settledAt: null,
+      },
+    ],
     createdAt: "2026-07-30T00:00:00.000Z",
-    broadcastAt: signing ? null : "2026-07-30T00:00:01.000Z",
+    broadcastAt: complete ? "2026-07-30T00:00:01.000Z" : null,
     settledAt: null,
-    signing: signing
-      ? {
-          stage: "evm",
-          requests: [
-            {
-              id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-              body: "turnkey-payout-activity",
-              token: "binding-token",
-              authorization: { required: 2, received: 0, remaining: 2, approvers: [] },
-            },
-          ],
-        }
-      : null,
+    signingRequests: [],
   };
 }
 
@@ -72,17 +83,14 @@ beforeAll(() => {
         POST: () => Response.json({ tenantId, rootUserId: "turnkey-user", mode: "cosigned" }),
       },
       "/v1/addresses": {
-        async POST(request) {
-          const body = (await request.json()) as { signedRequest?: unknown };
-          walletPhase += 1;
-          if (!body.signedRequest) {
-            return Response.json({ prepared: { body: "turnkey-wallet-activity" } });
-          }
+        POST() {
+          walletCalls += 1;
           return Response.json({
             id: "address-cli",
             tenant_id: tenantId,
             chainType: "evm",
             address: "0x1234",
+            address_kind: "turnkey_wallet_account",
             address_role: "payin",
             status: "available",
             isSignable: false,
@@ -90,7 +98,8 @@ beforeAll(() => {
             created_at: "2026-07-30T00:00:00.000Z",
             updated_at: "2026-07-30T00:00:00.000Z",
             deletedAt: null,
-            chains: [{ chainKey: "base-sepolia" }],
+            whitelistedAt: null,
+            chains: [{ chainKey: "eip155:84532" }],
           });
         },
       },
@@ -98,26 +107,40 @@ beforeAll(() => {
         POST: () =>
           Response.json({
             id: "payin-cli",
-            status: "pending",
+            status: "awaiting_payment",
             reference: null,
-            metadata: null,
             chainKey: "chain",
             assetKey: "asset",
             address: "deposit-address",
+            addressId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+            fromAddress: null,
             expectedAmount: "1000",
             amount: null,
             txHash: null,
             confirmations: 0,
+            classification: "matched",
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
           }),
       },
       "/v1/payouts": {
-        POST: () => Response.json(payout(true)),
+        POST: () =>
+          Response.json({
+            signingRequests: [
+              {
+                id: signingRequestId,
+                body: "turnkey-payout-activity",
+                token: "binding-token",
+              },
+            ],
+          }),
       },
-      "/v1/payouts/payout-cli/signatures": {
-        POST: () => Response.json(payout(false)),
+      [`/v1/payouts/${signingRequestId}/signatures`]: {
+        async POST(request) {
+          signatureSubmissions = (await request.json()) as unknown[];
+          return Response.json(payout(true));
+        },
       },
     },
   });
@@ -189,7 +212,7 @@ describe("Bun example commands", () => {
       testEnvironment({ HEDLES_SESSION_TOKEN: "hp_sess_cli" }),
     )) as { id: string };
     expect(walletResult.id).toBe("address-cli");
-    expect(walletPhase).toBe(2);
+    expect(walletCalls).toBe(1);
 
     const payinResult = (await run(
       "payin",
@@ -204,8 +227,9 @@ describe("Bun example commands", () => {
         "1000",
       ],
       testEnvironment(),
-    )) as { id: string };
+    )) as { id: string; classification: string };
     expect(payinResult.id).toBe("payin-cli");
+    expect(payinResult.classification).toBe("matched");
 
     const payoutResult = (await run(
       "payout",
@@ -224,8 +248,14 @@ describe("Bun example commands", () => {
         "to",
       ],
       testEnvironment(),
-    )) as { id: string; signing: unknown };
+    )) as { id: string; signingRequests: unknown[] };
     expect(payoutResult.id).toBe("payout-cli");
-    expect(payoutResult.signing).toBeNull();
+    expect(payoutResult.signingRequests).toEqual([]);
+    expect(signatureSubmissions).toHaveLength(1);
+    expect(signatureSubmissions[0]).toMatchObject({
+      id: signingRequestId,
+      body: "turnkey-payout-activity",
+      token: "binding-token",
+    });
   });
 });
