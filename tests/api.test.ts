@@ -16,16 +16,18 @@ beforeAll(() => {
           lastBody = await request.json();
           return Response.json({
             id: "payin-1",
-            status: "pending",
+            status: "awaiting_payment",
             reference: null,
-            metadata: null,
             chainKey: "chain",
             assetKey: "asset",
             address: "deposit-address",
+            addressId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+            fromAddress: null,
             expectedAmount: "1000",
             amount: null,
             txHash: null,
             confirmations: 0,
+            classification: "matched",
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
@@ -43,18 +45,18 @@ beforeAll(() => {
           lastBody = await request.json();
           return Response.json({
             id: "11111111-1111-4111-8111-111111111111",
-            status: "active",
-            fromChain: "from-chain",
-            fromAsset: "FROM",
-            toChain: "to-chain",
-            toAsset: "TO",
-            fromAmount: "1000",
-            toAmount: "990",
-            rate: "0.99",
-            feeAmount: "10",
-            depositAddress: "deposit-address",
-            depositMemo: null,
-            transaction: "unsigned-transaction",
+            status: "quoted",
+            sellChain: "sell-chain",
+            sellAsset: "SELL",
+            buyChain: "buy-chain",
+            buyAsset: "BUY",
+            sellAmount: "1000",
+            quotedBuyAmount: "990",
+            minimumBuyAmount: "980",
+            quotedRate: "0.99",
+            venueFundingAddress: "venue-address",
+            fundingMemo: null,
+            fundingTransaction: "unsigned-funding-psbt",
             token: "quote-token",
             expiresAt: "2026-07-30T01:00:00.000Z",
             createdAt: "2026-07-30T00:00:00.000Z",
@@ -66,22 +68,21 @@ beforeAll(() => {
           lastAuthorization = request.headers.get("Authorization");
           lastBody = await request.json();
           return Response.json({
-            id: "22222222-2222-4222-8222-222222222222",
-            quoteId: "11111111-1111-4111-8111-111111111111",
+            id: "11111111-1111-4111-8111-111111111111",
             status: "pending",
-            fromChain: "from-chain",
-            fromAsset: "FROM",
-            toChain: "to-chain",
-            toAsset: "TO",
-            fromAmount: "1000",
-            toAmount: "990",
-            rate: "0.99",
-            feeAmount: "10",
-            depositAddress: "deposit-address",
-            depositTxHash: null,
-            venueOrderId: null,
+            sellChain: "sell-chain",
+            sellAsset: "SELL",
+            buyChain: "buy-chain",
+            buyAsset: "BUY",
+            sellAmount: "1000",
+            quotedBuyAmount: "990",
+            minimumBuyAmount: "980",
+            quotedRate: "0.99",
+            venueFundingAddress: "venue-address",
+            fundingTxHash: "funding-txid",
             failureReason: null,
             executedAt: null,
+            acceptedAt: "2026-07-30T00:01:00.000Z",
             createdAt: "2026-07-30T00:00:00.000Z",
           });
         },
@@ -104,6 +105,7 @@ describe("HedlesApi", () => {
     });
 
     expect(result.id).toBe("payin-1");
+    expect(result.classification).toBe("matched");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
       chainKey: "chain",
@@ -118,45 +120,45 @@ describe("HedlesApi", () => {
 
   test("requests a swap quote with the RFQ inputs", async () => {
     const quote = await api.requestSwapQuote({
-      fromChain: "from-chain",
-      fromAsset: "FROM",
-      toChain: "to-chain",
-      toAsset: "TO",
+      sellChain: "sell-chain",
+      sellAsset: "SELL",
+      buyChain: "buy-chain",
+      buyAsset: "BUY",
       amount: "1000",
-      side: "from",
-      fromAddress: "seller-address",
+      side: "sell",
+      senderAddress: "seller-address",
+      recipientAddress: "buyer-address",
     });
 
-    expect(quote.status).toBe("active");
-    expect(quote.transaction).toBe("unsigned-transaction");
+    expect(quote.status).toBe("quoted");
+    expect(quote.fundingTransaction).toBe("unsigned-funding-psbt");
     expect(quote.token).toBe("quote-token");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
-      fromChain: "from-chain",
-      fromAsset: "FROM",
-      toChain: "to-chain",
-      toAsset: "TO",
+      sellChain: "sell-chain",
+      sellAsset: "SELL",
+      buyChain: "buy-chain",
+      buyAsset: "BUY",
       amount: "1000",
-      side: "from",
-      fromAddress: "seller-address",
+      side: "sell",
+      senderAddress: "seller-address",
+      recipientAddress: "buyer-address",
     });
   });
 
-  test("accepts a swap quote with the signed deposit transaction", async () => {
+  test("accepts a swap quote with the signed funding transaction", async () => {
     const swap = await api.acceptSwapQuote({
       quoteId: "11111111-1111-4111-8111-111111111111",
       token: "quote-token",
-      transaction: "unsigned-transaction",
-      signature: "aabbcc",
+      signature: "signed-funding-psbt",
     });
 
     expect(swap.status).toBe("pending");
-    expect(swap.quoteId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(swap.fundingTxHash).toBe("funding-txid");
     expect(lastBody).toEqual({
       quoteId: "11111111-1111-4111-8111-111111111111",
       token: "quote-token",
-      transaction: "unsigned-transaction",
-      signature: "aabbcc",
+      signature: "signed-funding-psbt",
     });
   });
 });
