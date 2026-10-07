@@ -1,4 +1,4 @@
-import { authenticatedOptions, parseCommand } from "../src/cli.ts";
+import { authenticatedOptions, choice, parseCommand } from "../src/cli.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 
 await runExample(async () => {
@@ -7,38 +7,43 @@ await runExample(async () => {
     description: "Request a firm RFQ quote to swap one supported asset for another.",
     options: {
       ...authenticatedOptions,
-      fromChain: {
+      sellChain: {
         description: "Chain key of the asset being sold",
         valueName: "key",
         required: true,
       },
-      fromAsset: {
+      sellAsset: {
         description: "Asset key of the asset being sold",
         valueName: "key",
         required: true,
       },
-      toChain: {
+      buyChain: {
         description: "Chain key of the asset being bought",
         valueName: "key",
         required: true,
       },
-      toAsset: {
+      buyAsset: {
         description: "Asset key of the asset being bought",
         valueName: "key",
         required: true,
       },
       amount: {
-        description: "Amount in atomic units of the side selected by --side",
+        description: "Amount in atomic units of the leg selected by --side",
         valueName: "amount",
         required: true,
       },
       side: {
-        description: "Which leg the amount fixes: from or to",
+        description: "Which leg the amount fixes: sell or buy (buy is not implemented yet)",
         valueName: "side",
-        defaultValue: "from",
+        defaultValue: "sell",
       },
-      fromAddress: {
-        description: "Your wallet address on the from-chain that funds the deposit",
+      senderAddress: {
+        description: "Your wallet address that sends the sold asset to the venue",
+        valueName: "address",
+        required: true,
+      },
+      recipientAddress: {
+        description: "Your wallet address that receives the bought asset",
         valueName: "address",
         required: true,
       },
@@ -46,24 +51,21 @@ await runExample(async () => {
   });
   if (!options) return;
 
-  if (options.side !== "from" && options.side !== "to") {
-    throw new Error("--side must be from or to");
-  }
-
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const quote = await api.requestSwapQuote({
-    fromChain: options.fromChain,
-    fromAsset: options.fromAsset,
-    toChain: options.toChain,
-    toAsset: options.toAsset,
+    sellChain: options.sellChain,
+    sellAsset: options.sellAsset,
+    buyChain: options.buyChain,
+    buyAsset: options.buyAsset,
     amount: options.amount,
-    side: options.side,
-    fromAddress: options.fromAddress,
+    side: choice(options.side, "--side", ["sell", "buy"]),
+    senderAddress: options.senderAddress,
+    recipientAddress: options.recipientAddress,
   });
 
   printJson(quote);
   console.error(
-    `\nSign the quote's transaction bytes with the wallet that controls ${options.fromAddress}, then accept before ${quote.expiresAt}:\n` +
-      `  bun run swap-accept --quote-id ${quote.id} --token <token> --transaction <transaction> --signature <hex>`,
+    `\nSign the quote's fundingTransaction with the wallet that controls ${options.senderAddress}, then accept before ${quote.expiresAt}:\n` +
+      `  bun run swap-accept --quote-id ${quote.id} --token <token> --signature <signed funding transaction>`,
   );
 });
