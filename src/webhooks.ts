@@ -15,6 +15,11 @@ export const WEBHOOK_EVENT_TYPES = [
   "payout.broadcast",
   "payout.settled",
   "payout.failed",
+  "swap.accepted",
+  "swap.executing",
+  "swap.executed",
+  "swap.expired",
+  "swap.failed",
 ] as const;
 
 export class WebhookVerificationError extends Error {}

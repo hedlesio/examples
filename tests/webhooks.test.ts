@@ -106,6 +106,22 @@ describe("webhook request handling", () => {
     expect(delivery.event.data).toMatchObject({ confirmations: 12 });
   });
 
+  test("accepts a swap lifecycle event", async () => {
+    const body = JSON.stringify({
+      event: "swap.executed",
+      data: {
+        swapId: "6a2b0c4d-1e2f-4a5b-9c8d-7e6f5a4b3c2d",
+        sellAmount: "1000",
+        quotedBuyAmount: "990",
+        minimumBuyAmount: "980",
+        quotedRate: "0.99",
+        executedAt: "2026-07-30T00:05:00.000Z",
+      },
+    });
+    const delivery = await verifyRequest(deliveryRequest({ body }), SECRET, Number.MAX_SAFE_INTEGER);
+    expect(delivery.event.event).toBe("swap.executed");
+  });
+
   test("rejects an unknown event type and a non-JSON body", async () => {
     const unknown = JSON.stringify({ event: "payin.reversed", data: {} });
     expect(
