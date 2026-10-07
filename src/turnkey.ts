@@ -1,8 +1,8 @@
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
 import type {
-  PreparedTurnkeyActivity,
   SignedIdentityRequest,
   SignedTurnkeyActivity,
+  SigningRequest,
   Stamper,
   TurnkeyCredentials,
 } from "./types.ts";
@@ -32,7 +32,7 @@ export async function stampIdentity(body: string, stamper: Stamper): Promise<Sig
 }
 
 export async function stampActivities(
-  requests: PreparedTurnkeyActivity[],
+  requests: SigningRequest[],
   stamper: Stamper,
 ): Promise<SignedTurnkeyActivity[]> {
   return Promise.all(

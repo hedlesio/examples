@@ -1,9 +1,10 @@
 import type {
   AcceptSwapQuoteInput,
+  AddressEntry,
   ClaimResponse,
-  CreateAddressResponse,
   CreatePayinInput,
   CreatePayoutInput,
+  CreatePayoutResponse,
   PayinResponse,
   PayoutResponse,
   RequestSwapQuoteInput,
@@ -94,13 +95,10 @@ export class HedlesApi {
     });
   }
 
-  createAddress(chainType: string, signedRequest?: SignedIdentityRequest): Promise<CreateAddressResponse> {
+  createAddress(chainType: string): Promise<AddressEntry> {
     return this.request("/v1/addresses", {
       method: "POST",
-      body: JSON.stringify({
-        chainType,
-        ...(signedRequest ? { signedRequest } : {}),
-      }),
+      body: JSON.stringify({ chainType }),
     });
   }
 
@@ -111,7 +109,7 @@ export class HedlesApi {
     });
   }
 
-  createPayout(input: CreatePayoutInput): Promise<PayoutResponse> {
+  createPayout(input: CreatePayoutInput): Promise<CreatePayoutResponse> {
     return this.request("/v1/payouts", {
       method: "POST",
       body: JSON.stringify(input),
@@ -122,10 +120,12 @@ export class HedlesApi {
     return this.request(`/v1/payouts/${encodeURIComponent(payoutId)}`);
   }
 
-  submitPayoutSignatures(payoutId: string, requests: SignedTurnkeyActivity[]): Promise<PayoutResponse> {
-    return this.request(`/v1/payouts/${encodeURIComponent(payoutId)}/signatures`, {
+  // The stamped signing requests are the top-level JSON array. Before the
+  // payout exists, `id` is the signing-request id; afterwards it is the payout id.
+  submitPayoutSignatures(id: string, requests: SignedTurnkeyActivity[]): Promise<PayoutResponse> {
+    return this.request(`/v1/payouts/${encodeURIComponent(id)}/signatures`, {
       method: "POST",
-      body: JSON.stringify({ requests }),
+      body: JSON.stringify(requests),
     });
   }
 
