@@ -4,7 +4,7 @@ import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 await runExample(async () => {
   const options = parseCommand({
     name: "swap-accept",
-    description: "Accept a swap quote by posting back its deposit transaction with your signature.",
+    description: "Accept a swap quote by posting the wallet-signed version of its funding transaction.",
     options: {
       ...authenticatedOptions,
       quoteId: {
@@ -17,14 +17,9 @@ await runExample(async () => {
         valueName: "token",
         required: true,
       },
-      transaction: {
-        description: "The quote's unsigned deposit transaction, byte-for-byte unchanged",
-        valueName: "tx",
-        required: true,
-      },
       signature: {
-        description: "Raw signature over the transaction from the wallet controlling the from-address",
-        valueName: "hex",
+        description: "Signed funding transaction produced from the quote's fundingTransaction",
+        valueName: "payload",
         required: true,
       },
     },
@@ -35,7 +30,6 @@ await runExample(async () => {
   const swap = await api.acceptSwapQuote({
     quoteId: options.quoteId,
     token: options.token,
-    transaction: options.transaction,
     signature: options.signature,
   });
 
