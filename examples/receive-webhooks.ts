@@ -24,13 +24,23 @@ function describe(event: WebhookEvent): string {
     case "payin.expired":
       return `payin ${event.data.payinId} expired unpaid`;
     case "payout.created":
-      return `payout ${event.data.payoutId} prepared for ${event.data.toAddress}`;
+      return `payout ${event.data.payoutId} prepared with ${event.data.transfers.length} transfer(s)`;
     case "payout.broadcast":
       return `payout ${event.data.payoutId} broadcast as ${event.data.txHash}`;
     case "payout.settled":
-      return `payout ${event.data.payoutId} settled in ${event.data.txHash}`;
+      return `payout ${event.data.payoutId} settled in ${event.data.txHash} (check each transfer status)`;
     case "payout.failed":
       return `payout ${event.data.payoutId} failed: ${event.data.reason}`;
+    case "swap.accepted":
+      return `swap ${event.data.swapId} funded by ${event.data.fundingTxHash}`;
+    case "swap.executing":
+      return `swap ${event.data.swapId} executing after funding ${event.data.fundingTxHash}`;
+    case "swap.executed":
+      return `swap ${event.data.swapId} executed at ${event.data.executedAt}`;
+    case "swap.expired":
+      return `swap ${event.data.swapId} expired before its deposit confirmed`;
+    case "swap.failed":
+      return `swap ${event.data.swapId} failed: ${event.data.reason}`;
   }
 }
 
