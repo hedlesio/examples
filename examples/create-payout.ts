@@ -7,7 +7,7 @@ import { createTurnkeyStamper } from "../src/turnkey.ts";
 await runExample(async () => {
   const options = parseCommand({
     name: "payout",
-    description: "Create and sign a payout.",
+    description: "Create a payout and sign every opaque signing request it returns.",
     options: {
       ...authenticatedOptions,
       chain: {
@@ -16,17 +16,17 @@ await runExample(async () => {
         required: true,
       },
       asset: {
-        description: "Asset key",
+        description: "Asset key moved by every transfer",
         valueName: "key",
         required: true,
       },
       from: {
-        description: "Source address",
+        description: "Source address funding every transfer",
         valueName: "address",
         required: true,
       },
       to: {
-        description: "Destination address",
+        description: "Recipient address",
         valueName: "address",
         required: true,
       },
@@ -35,9 +35,9 @@ await runExample(async () => {
         valueName: "amount",
         required: true,
       },
-      note: {
-        description: "Reconciliation note",
-        valueName: "note",
+      reference: {
+        description: "Reconciliation reference",
+        valueName: "reference",
       },
       destinationTag: {
         description: "XRPL uint32 destination tag",
@@ -50,21 +50,25 @@ await runExample(async () => {
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const destinationTag =
     options.destinationTag === undefined ? undefined : uint32(options.destinationTag, "--destination-tag");
-  const payout = await api.createPayout({
+  const created = await api.createPayout({
     chain: options.chain,
     asset: options.asset,
     fromAddress: options.from,
-    toAddress: options.to,
-    amount: options.amount,
-    ...(options.note ? { note: options.note } : {}),
-    ...(destinationTag === undefined ? {} : { destinationTag }),
+    transfers: [
+      {
+        toAddress: options.to,
+        amount: options.amount,
+        ...(destinationTag === undefined ? {} : { destinationTag }),
+      },
+    ],
+    ...(options.reference ? { reference: options.reference } : {}),
   });
 
-  if (!payout.signing) {
-    printJson(payout);
+  if ("id" in created && created.signingRequests.length === 0) {
+    printJson(created);
     return;
   }
 
-  const signed = await completePayoutSigning(api, payout, createTurnkeyStamper(turnkeyCredentials()));
-  printJson(signed);
+  const payout = await completePayoutSigning(api, created, createTurnkeyStamper(turnkeyCredentials()));
+  printJson(payout);
 });

@@ -1,27 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { completePayoutSigning } from "../src/payout.ts";
-import type {
-  PayoutResponse,
-  PreparedTurnkeyActivity,
-  SignedTurnkeyActivity,
-  Stamper,
-} from "../src/types.ts";
+import type { PayoutResponse, SignedTurnkeyActivity, SigningRequest, Stamper } from "../src/types.ts";
 
-function activity(id: string, body: string): PreparedTurnkeyActivity {
-  return {
-    id,
-    body,
-    token: `token-${id}`,
-    authorization: {
-      required: 2,
-      received: 0,
-      remaining: 2,
-      approvers: [],
-    },
-  };
+function signingRequest(id: string, body: string): SigningRequest {
+  return { id, body, token: `token-${id}` };
 }
 
-function payout(signing: PayoutResponse["signing"]): PayoutResponse {
+function payout(signingRequests: SigningRequest[]): PayoutResponse {
+  const complete = signingRequests.length === 0;
   return {
     id: "payout-1",
     chain: "chain",
@@ -29,79 +15,105 @@ function payout(signing: PayoutResponse["signing"]): PayoutResponse {
     fromAddress: "from",
     toAddress: "to",
     amount: "1000",
-    kind: "direct",
-    status: signing ? "prepared" : "broadcast",
-    unsignedTx: signing ? "unsigned" : null,
-    txHash: signing ? null : "0xhash",
-    note: null,
+    feeTotal: null,
+    kind: "payout",
+    status: complete ? "broadcast" : "pending",
+    unsignedTx: complete ? null : "unsigned",
+    signedTx: null,
+    txHash: complete ? "0xhash" : null,
+    nonce: null,
+    confirmations: 0,
+    requiredConfirmations: 1,
+    reference: null,
+    lastError: null,
+    transfers: [],
     createdAt: "2026-07-30T00:00:00.000Z",
-    broadcastAt: signing ? null : "2026-07-30T00:00:01.000Z",
+    broadcastAt: complete ? "2026-07-30T00:00:01.000Z" : null,
     settledAt: null,
-    signing,
+    signingRequests,
   };
 }
 
-describe("completePayoutSigning", () => {
-  test("injects the stamper into every request across two signing stages", async () => {
-    const submissions: SignedTurnkeyActivity[][] = [];
-    const api = {
-      async submitPayoutSignatures(_payoutId: string, requests: SignedTurnkeyActivity[]) {
-        submissions.push(requests);
-        if (submissions.length === 1) {
-          return payout({ stage: "evm", requests: [activity("stage-2", "body-2")] });
-        }
-        return payout(null);
-      },
+const stamper: Stamper = {
+  async stamp(input) {
+    return {
+      stampHeaderName: "X-Stamp",
+      stampHeaderValue: `signed:${input}`,
     };
-    const stamper: Stamper = {
-      async stamp(input) {
-        return {
-          stampHeaderName: "X-Stamp",
-          stampHeaderValue: `signed:${input}`,
-        };
+  },
+};
+
+describe("completePayoutSigning", () => {
+  test("submits the initial request by its signing-request id, then by the payout id", async () => {
+    const submissions: Array<{ target: string; requests: SignedTurnkeyActivity[] }> = [];
+    const api = {
+      async submitPayoutSignatures(target: string, requests: SignedTurnkeyActivity[]) {
+        submissions.push({ target, requests });
+        if (submissions.length === 1) return payout([signingRequest("round-2", "body-2")]);
+        return payout([]);
       },
     };
 
     const result = await completePayoutSigning(
       api,
-      payout({ stage: "evm", requests: [activity("stage-1", "body-1")] }),
+      { signingRequests: [signingRequest("round-1", "body-1")] },
       stamper,
     );
 
-    expect(result.signing).toBeNull();
+    expect(result.signingRequests).toEqual([]);
     expect(submissions).toEqual([
-      [
-        {
-          id: "stage-1",
-          body: "body-1",
-          token: "token-stage-1",
-          stamp: { name: "X-Stamp", value: "signed:body-1" },
-        },
-      ],
-      [
-        {
-          id: "stage-2",
-          body: "body-2",
-          token: "token-stage-2",
-          stamp: { name: "X-Stamp", value: "signed:body-2" },
-        },
-      ],
+      {
+        target: "round-1",
+        requests: [
+          {
+            id: "round-1",
+            body: "body-1",
+            token: "token-round-1",
+            stamp: { name: "X-Stamp", value: "signed:body-1" },
+          },
+        ],
+      },
+      {
+        target: "payout-1",
+        requests: [
+          {
+            id: "round-2",
+            body: "body-2",
+            token: "token-round-2",
+            stamp: { name: "X-Stamp", value: "signed:body-2" },
+          },
+        ],
+      },
     ]);
   });
 
   test("returns immediately when the payout needs no client signature", async () => {
-    const initial = payout(null);
+    const initial = payout([]);
     const api = {
-      async submitPayoutSignatures() {
+      async submitPayoutSignatures(): Promise<PayoutResponse> {
         throw new Error("must not submit signatures");
       },
     };
-    const stamper: Stamper = {
+    const silent: Stamper = {
       async stamp() {
         throw new Error("must not stamp");
       },
     };
 
-    expect(await completePayoutSigning(api, initial, stamper)).toBe(initial);
+    expect(await completePayoutSigning(api, initial, silent)).toBe(initial);
+  });
+
+  test("fails when signing requests never drain", async () => {
+    let round = 0;
+    const api = {
+      async submitPayoutSignatures() {
+        round += 1;
+        return payout([signingRequest(`round-${round}`, `body-${round}`)]);
+      },
+    };
+
+    expect(
+      completePayoutSigning(api, { signingRequests: [signingRequest("round-0", "body-0")] }, stamper),
+    ).rejects.toThrow("still requires signatures");
   });
 });
