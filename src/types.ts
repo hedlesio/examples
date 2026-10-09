@@ -32,6 +32,13 @@ export interface ClaimResponse {
   mode: "custodial" | "cosigned";
 }
 
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface AddressEntry {
   id: string;
   tenant_id: string;

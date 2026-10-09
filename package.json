@@ -2,7 +2,7 @@
   "name": "@hedles/examples",
   "version": "0.1.0",
   "private": true,
-  "description": "Runnable Hedles API examples for Bun and TypeScript",
+  "description": "Runnable Hedles API examples for Bun and TypeScript: claims, sessions, wallets, pay-ins, payouts, swaps, and webhooks",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,6 +18,8 @@
     "payout": "bun examples/create-payout.ts",
     "swap-quote": "bun examples/request-swap-quote.ts",
     "swap-accept": "bun examples/accept-swap-quote.ts",
+    "swap": "bun examples/execute-swap.ts",
+    "swap-status": "bun examples/get-swap.ts",
     "webhooks": "bun examples/receive-webhooks.ts",
     "typecheck": "bunx tsc --noEmit",
     "lint": "bunx biome check .",
@@ -26,6 +28,7 @@
     "check": "bun run typecheck && bun run lint && bun test"
   },
   "dependencies": {
+    "@bitgo/utxo-lib": "^11.24.4",
     "@turnkey/api-key-stamper": "^0.6.8",
     "@turnkey/crypto": "^2.10.1"
   },

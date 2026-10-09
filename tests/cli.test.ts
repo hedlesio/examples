@@ -1,13 +1,19 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { bitgo } from "@bitgo/utxo-lib";
 import { generateP256KeyPair } from "@turnkey/crypto";
+import { fundingFixture } from "./_helpers/funding-psbt.ts";
 
 const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const userId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const signingRequestId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const credentials = generateP256KeyPair();
 let server: ReturnType<typeof Bun.serve>;
+const quoteId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const fixture = fundingFixture("dogecoin", 3);
 let walletCalls = 0;
 let signatureSubmissions: unknown[] = [];
+let payoutBodies: unknown[] = [];
+let acceptBodies: unknown[] = [];
 
 function session() {
   return {
@@ -57,6 +63,48 @@ function payout(complete: boolean) {
     broadcastAt: complete ? "2026-07-30T00:00:01.000Z" : null,
     settledAt: null,
     signingRequests: [],
+  };
+}
+
+function quote() {
+  return {
+    id: quoteId,
+    status: "quoted",
+    sellChain: "dogecoin",
+    sellAsset: "DOGE",
+    buyChain: "bitcoin",
+    buyAsset: "BTC",
+    sellAmount: "90000",
+    quotedBuyAmount: "7273",
+    minimumBuyAmount: "7200",
+    quotedRate: "0.0000000808",
+    venueFundingAddress: fixture.venueAddress,
+    fundingMemo: null,
+    fundingTransaction: fixture.unsigned,
+    token: "quote-token",
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function swap() {
+  return {
+    id: quoteId,
+    status: "pending",
+    sellChain: "dogecoin",
+    sellAsset: "DOGE",
+    buyChain: "bitcoin",
+    buyAsset: "BTC",
+    sellAmount: "90000",
+    quotedBuyAmount: "7273",
+    minimumBuyAmount: "7200",
+    quotedRate: "0.0000000808",
+    venueFundingAddress: fixture.venueAddress,
+    fundingTxHash: "ab".repeat(32),
+    failureReason: null,
+    executedAt: null,
+    acceptedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -125,8 +173,9 @@ beforeAll(() => {
           }),
       },
       "/v1/payouts": {
-        POST: () =>
-          Response.json({
+        async POST(request) {
+          payoutBodies.push(await request.json());
+          return Response.json({
             signingRequests: [
               {
                 id: signingRequestId,
@@ -134,13 +183,30 @@ beforeAll(() => {
                 token: "binding-token",
               },
             ],
-          }),
+          });
+        },
       },
       [`/v1/payouts/${signingRequestId}/signatures`]: {
         async POST(request) {
           signatureSubmissions = (await request.json()) as unknown[];
           return Response.json(payout(true));
         },
+      },
+      "/v1/swaps/quotes": {
+        POST: () => Response.json(quote(), { status: 201 }),
+      },
+      [`/v1/swaps/quotes/${quoteId}`]: {
+        GET: () => Response.json(quote()),
+      },
+      "/v1/swaps": {
+        GET: () => Response.json({ items: [swap()], total: 1, limit: 20, offset: 0 }),
+        async POST(request) {
+          acceptBodies.push(await request.json());
+          return Response.json(swap(), { status: 201 });
+        },
+      },
+      [`/v1/swaps/${quoteId}`]: {
+        GET: () => Response.json(swap()),
       },
     },
   });
@@ -160,6 +226,7 @@ function testEnvironment(overrides: Record<string, string> = {}): Record<string,
     HEDLES_API_PUBLIC_KEY: credentials.publicKey,
     HEDLES_API_PRIVATE_KEY: credentials.privateKey,
     HEDLES_SESSION_TOKEN: "",
+    HEDLES_SWAP_SIGNING_KEY: "",
     ...overrides,
   };
 }
@@ -257,5 +324,104 @@ describe("Bun example commands", () => {
       body: "turnkey-payout-activity",
       token: "binding-token",
     });
+  });
+
+  test("payout multisend sends ordered transfers", async () => {
+    payoutBodies = [];
+    const result = (await run(
+      "payout",
+      [
+        "--api-url",
+        `http://127.0.0.1:${server.port}`,
+        "--chain",
+        "chain",
+        "--asset",
+        "asset",
+        "--from",
+        "from",
+        "--to",
+        "to-1",
+        "--amount",
+        "600",
+        "--to",
+        "to-2",
+        "--amount",
+        "400",
+        "--reference",
+        "invoice-123",
+      ],
+      testEnvironment(),
+    )) as { id: string };
+    expect(result.id).toBe("payout-cli");
+    expect(payoutBodies).toEqual([
+      {
+        chain: "chain",
+        asset: "asset",
+        fromAddress: "from",
+        transfers: [
+          { toAddress: "to-1", amount: "600" },
+          { toAddress: "to-2", amount: "400" },
+        ],
+        reference: "invoice-123",
+      },
+    ]);
+  });
+
+  test("swap commands quote, sign locally, accept, and read back", async () => {
+    acceptBodies = [];
+    const swapArgs = [
+      "--api-url",
+      `http://127.0.0.1:${server.port}`,
+      "--sell-chain",
+      "dogecoin",
+      "--sell-asset",
+      "DOGE",
+      "--buy-chain",
+      "bitcoin",
+      "--buy-asset",
+      "BTC",
+      "--amount",
+      "90000",
+      "--sender-address",
+      fixture.senderAddress,
+      "--recipient-address",
+      "bc1qrecipient",
+    ];
+    const quoteResult = (await run("swap-quote", swapArgs, testEnvironment())) as { id: string };
+    expect(quoteResult.id).toBe(quoteId);
+
+    const swapResult = (await run(
+      "swap",
+      swapArgs,
+      testEnvironment({ HEDLES_SWAP_SIGNING_KEY: fixture.senderWif }),
+    )) as { signature: string; swap: { id: string; status: string } };
+    expect(swapResult.swap.id).toBe(quoteId);
+    expect(swapResult.swap.status).toBe("pending");
+
+    const accepted = acceptBodies[0] as { quoteId: string; token: string; signature: string };
+    expect(accepted.quoteId).toBe(quoteId);
+    expect(accepted.token).toBe("quote-token");
+    const signed = bitgo.createPsbtDecode(accepted.signature, fixture.network);
+    expect(signed.validateSignaturesOfAllInputs()).toBe(true);
+
+    const resumed = (await run(
+      "swap",
+      ["--api-url", `http://127.0.0.1:${server.port}`, "--quote-id", quoteId],
+      testEnvironment({ HEDLES_SWAP_SIGNING_KEY: fixture.senderWif }),
+    )) as { signature: string };
+    expect(resumed.signature).toBe(swapResult.signature);
+
+    const status = (await run(
+      "swap-status",
+      ["--api-url", `http://127.0.0.1:${server.port}`, "--id", quoteId],
+      testEnvironment(),
+    )) as { id: string };
+    expect(status.id).toBe(quoteId);
+    const listed = (await run(
+      "swap-status",
+      ["--api-url", `http://127.0.0.1:${server.port}`],
+      testEnvironment(),
+    )) as { total: number };
+    expect(listed.total).toBe(1);
   });
 });

@@ -15,6 +15,11 @@ const command = {
       description: "Optional example value",
       valueName: "value",
     },
+    repeatedValue: {
+      description: "Repeatable example value",
+      valueName: "value",
+      repeatable: true,
+    },
   },
 } as const;
 
@@ -24,7 +29,19 @@ describe("CLI options", () => {
       apiUrl: "https://api-dev.hedles.io",
       requiredValue: "required",
       optionalValue: "optional",
+      repeatedValue: [],
     });
+  });
+
+  test("collects repeatable options in order", () => {
+    const parsed = parseCommand(command, [
+      "--required-value",
+      "r",
+      "--repeated-value",
+      "a",
+      "--repeated-value=b",
+    ]);
+    expect(parsed?.repeatedValue).toEqual(["a", "b"]);
   });
 
   test("rejects missing, unknown, and duplicate options", () => {
