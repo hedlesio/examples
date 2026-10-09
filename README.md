@@ -26,6 +26,7 @@ Commands default to `https://api-dev.hedles.io`. Production operations are real:
 | `HEDLES_API_PUBLIC_KEY` | Compressed P-256 public key |
 | `HEDLES_API_PRIVATE_KEY` | 32-byte P-256 private key in hex |
 | `HEDLES_WEBHOOK_SECRET` | Signing secret of the webhook endpoint |
+| `HEDLES_SWAP_SIGNING_KEY` | WIF or 32-byte hex private key of the UTXO address that funds swaps |
 
 Authenticated commands use `HEDLES_SESSION_TOKEN` when set; otherwise they create a session with the API
 key pair. Cosigned payouts always need the key pair to stamp their signing requests.
@@ -93,7 +94,8 @@ bun run payout \
   --reference invoice-123
 ```
 
-`--reference` is optional. XRPL supports `--destination-tag <uint32>`.
+`--reference` is optional. XRPL supports `--destination-tag <uint32>`. Repeat `--to` and `--amount` in pairs
+for a multisend from an EVM or Zcash omnibus; `all` sweeps the balance for a single recipient.
 
 A payout is one single-asset transaction: `POST /v1/payouts` takes a top-level `chain`, `asset`, and
 `fromAddress` plus one or more `transfers` (`toAddress`, `amount`, optional `destinationTag`). It never
@@ -151,11 +153,14 @@ A swap is a request-for-quote flow that never takes custody of your keys. Reques
 ```sh
 bun run swap-quote \
   --sell-chain bitcoin --sell-asset BTC \
-  --buy-chain eip155:1 --buy-asset ETH \
+  --buy-chain eip155:1 --buy-asset USDT \
   --amount 100000 --side sell \
   --sender-address bc1qYourSendingAddress \
   --recipient-address 0xYourReceivingAddress
 ```
+
+Supported directed pairs are `DOGE`, `LTC`, and `ZEC` into `BTC` or `USDT` (Ethereum), and `BTC` into
+`USDT`. Zcash is transparent-address only, and route availability is dynamic.
 
 The quote returns firm terms (`sellAmount`, `quotedBuyAmount`, `minimumBuyAmount`, `quotedRate`), the
 `venueFundingAddress` (plus `fundingMemo` where the chain needs one), an unsigned `fundingTransaction`
@@ -165,7 +170,22 @@ leg. Swap routing covers mainnet pairs; a pair the venue cannot route (including
 rejected with `400 swap_pair_not_supported`.
 
 Sign the `fundingTransaction` with the wallet that controls `--sender-address` — amount, destination, and
-memo are fixed by construction — then accept before the quote expires:
+memo are fixed by construction — then accept before the quote expires. If that wallet's key is at hand, one
+command does quote, local signature, and acceptance:
+
+```sh
+HEDLES_SWAP_SIGNING_KEY=<wif or hex> bun run swap \
+  --sell-chain dogecoin --sell-asset DOGE \
+  --buy-chain bitcoin --buy-asset BTC \
+  --amount 8000000000 \
+  --sender-address DYourDogeAddress \
+  --recipient-address bc1qYourReceivingAddress
+```
+
+`src/swap.ts` decodes the PSBT with `@bitgo/utxo-lib` on the sell chain's network (Bitcoin, Litecoin,
+Dogecoin, Bitcoin Cash, Zcash, and their testnets), adds input signatures, and leaves everything else
+untouched. `bun run swap --quote-id <id>` signs and accepts a quote you already hold. To sign elsewhere,
+post the signed PSBT yourself:
 
 ```sh
 bun run swap-accept \
@@ -177,8 +197,9 @@ The signed payload must come from the quote's exact `fundingTransaction`; the AP
 transaction is unchanged, validates and finalizes every input, then broadcasts it. A retry must resubmit
 the same signed bytes rather than signing again. Track the returned swap via `GET /v1/swaps/:id` through
 `pending`, `executing`, and `executed` — a swap whose deposit never confirms before the deadline ends
-`expired`, and other terminal errors end `failed` with a bounded `failureReason`. An expired quote cannot
-be accepted — request a fresh one rather than re-signing stale bytes.
+`expired`, and other terminal errors end `failed` with a bounded `failureReason`. `bun run swap-status --id
+<id>` reads one swap (its id matches the quote's) and `bun run swap-status` lists recent ones. An expired
+quote cannot be accepted — request a fresh one rather than re-signing stale bytes.
 
 ## Shared options
 
@@ -199,7 +220,7 @@ Runs TypeScript, Biome, and Bun tests.
 ## Security
 
 - Never commit `.env`.
-- Treat private keys and session tokens as secrets.
+- Treat private keys, session tokens, and the swap signing key as secrets.
 - Never modify a prepared activity body before signing.
 - Test financial operations against development first.
 

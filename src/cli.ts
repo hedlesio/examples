@@ -4,17 +4,20 @@ type OptionDefinition = {
   description: string;
   valueName: string;
   required?: true;
+  repeatable?: true;
   defaultValue?: string;
 };
 
 type OptionDefinitions = Record<string, OptionDefinition>;
 
 type ParsedOptions<T extends OptionDefinitions> = {
-  [K in keyof T]: T[K] extends { required: true }
-    ? string
-    : T[K] extends { defaultValue: string }
+  [K in keyof T]: T[K] extends { repeatable: true }
+    ? string[]
+    : T[K] extends { required: true }
       ? string
-      : string | undefined;
+      : T[K] extends { defaultValue: string }
+        ? string
+        : string | undefined;
 };
 
 type CommandDefinition<T extends OptionDefinitions> = {
@@ -48,6 +51,7 @@ function helpText<T extends OptionDefinitions>(command: CommandDefinition<T>): s
     const flag = `${flagName(name)} <${definition.valueName}>`;
     const qualifiers = [
       definition.required ? "required" : undefined,
+      definition.repeatable ? "repeatable" : undefined,
       definition.defaultValue === undefined ? undefined : `default: ${definition.defaultValue}`,
     ].filter(Boolean);
     const description =
@@ -76,7 +80,7 @@ export function parseCommand<T extends OptionDefinitions>(
   const definitions = new Map(
     Object.entries(command.options).map(([name, definition]) => [flagName(name), { name, definition }]),
   );
-  const values: Record<string, string> = {};
+  const values: Record<string, string | string[]> = {};
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -87,18 +91,31 @@ export function parseCommand<T extends OptionDefinitions>(
     const flag = separator === -1 ? argument : argument.slice(0, separator);
     const match = definitions.get(flag);
     if (!match) throw new Error(`Unknown option: ${flag}`);
-    if (values[match.name] !== undefined) throw new Error(`${flag} may only be provided once`);
 
     const inlineValue = separator === -1 ? undefined : argument.slice(separator + 1);
     const nextValue = inlineValue ?? argv[index + 1];
     if (!nextValue || (inlineValue === undefined && nextValue.startsWith("--"))) {
       throw new Error(`${flag} requires a value`);
     }
-    values[match.name] = nextValue;
     if (inlineValue === undefined) index += 1;
+
+    const existing = values[match.name];
+    if (match.definition.repeatable) {
+      values[match.name] = Array.isArray(existing) ? [...existing, nextValue] : [nextValue];
+      continue;
+    }
+    if (existing !== undefined) throw new Error(`${flag} may only be provided once`);
+    values[match.name] = nextValue;
   }
 
   for (const [name, definition] of Object.entries(command.options)) {
+    if (definition.repeatable) {
+      if (values[name] === undefined) values[name] = [];
+      if (definition.required && (values[name] as string[]).length === 0) {
+        throw new Error(`${flagName(name)} is required`);
+      }
+      continue;
+    }
     if (values[name] === undefined && definition.defaultValue !== undefined) {
       values[name] = definition.defaultValue;
     }

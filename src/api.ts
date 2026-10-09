@@ -5,6 +5,7 @@ import type {
   CreatePayinInput,
   CreatePayoutInput,
   CreatePayoutResponse,
+  Paginated,
   PayinResponse,
   PayoutResponse,
   RequestSwapQuoteInput,
@@ -30,6 +31,11 @@ export class HedlesApiError extends Error {
     super(`Hedles API returned HTTP ${status}: ${detail}`);
     this.name = "HedlesApiError";
   }
+}
+
+export interface ListOptions {
+  limit?: number;
+  offset?: number;
 }
 
 export class HedlesApi {
@@ -149,6 +155,14 @@ export class HedlesApi {
 
   getSwap(swapId: string): Promise<SwapResponse> {
     return this.request(`/v1/swaps/${encodeURIComponent(swapId)}`);
+  }
+
+  listSwaps(options: ListOptions = {}): Promise<Paginated<SwapResponse>> {
+    const query = new URLSearchParams();
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    if (options.offset !== undefined) query.set("offset", String(options.offset));
+    const suffix = query.size === 0 ? "" : `?${query}`;
+    return this.request(`/v1/swaps${suffix}`);
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
