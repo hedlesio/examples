@@ -1,13 +1,15 @@
-export interface TurnkeyStamp {
+export interface Stamp {
   stampHeaderName: string;
   stampHeaderValue: string;
 }
 
 export interface Stamper {
-  stamp(input: string): Promise<TurnkeyStamp>;
+  stamp(input: string): Promise<Stamp>;
 }
 
-export interface TurnkeyCredentials {
+// A P-256 key pair: compressed public key (hex, 66 chars) registered at claim
+// time, and the 32-byte private scalar (hex) that signs request bodies.
+export interface ApiKeyCredentials {
   publicKey: string;
   privateKey: string;
 }
@@ -106,7 +108,7 @@ export interface SigningRequest {
   token: string;
 }
 
-export interface SignedTurnkeyActivity {
+export interface SignedActivity {
   id: string;
   body: string;
   token: string;

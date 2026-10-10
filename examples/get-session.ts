@@ -1,8 +1,8 @@
 import { obtainSession } from "../src/auth.ts";
 import { authenticatedOptions, parseCommand } from "../src/cli.ts";
-import { turnkeyCredentials } from "../src/config.ts";
+import { apiKeyCredentials } from "../src/config.ts";
 import { printJson, publicApi, runExample } from "../src/runtime.ts";
-import { createTurnkeyStamper } from "../src/turnkey.ts";
+import { createStamper } from "../src/stamper.ts";
 
 await runExample(async () => {
   const options = parseCommand({
@@ -14,7 +14,7 @@ await runExample(async () => {
 
   const session = await obtainSession(
     publicApi(options.apiUrl),
-    createTurnkeyStamper(turnkeyCredentials()),
+    createStamper(apiKeyCredentials()),
     options.organizationId,
   );
   printJson(session);

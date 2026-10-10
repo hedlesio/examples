@@ -29,7 +29,11 @@ Commands default to `https://api-dev.hedles.io`. Production operations are real:
 | `HEDLES_SWAP_SIGNING_KEY` | WIF or 32-byte hex private key of the UTXO address that funds swaps |
 
 Authenticated commands use `HEDLES_SESSION_TOKEN` when set; otherwise they create a session with the API
-key pair. Cosigned payouts always need the key pair to stamp their signing requests.
+key pair. Signing needs nothing beyond WebCrypto: a stamp is an ECDSA P-256 signature over the exact bytes
+of a body, sent in the `X-Stamp` header as base64url JSON `{ publicKey, scheme, signature }` with the
+DER-encoded signature in hex. `src/stamper.ts` is the whole implementation, including key generation and a
+verifier you can port to another language. The login body carries a `timestampMs`; the API rejects stale
+ones, so a captured login stamp is worth minutes, not forever. Cosigned payouts always need the key pair to stamp their signing requests.
 
 ## Commands
 

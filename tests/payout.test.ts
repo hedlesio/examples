@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { completePayoutSigning } from "../src/payout.ts";
-import type { PayoutResponse, SignedTurnkeyActivity, SigningRequest, Stamper } from "../src/types.ts";
+import type { PayoutResponse, SignedActivity, SigningRequest, Stamper } from "../src/types.ts";
 
 function signingRequest(id: string, body: string): SigningRequest {
   return { id, body, token: `token-${id}` };
@@ -45,9 +45,9 @@ const stamper: Stamper = {
 
 describe("completePayoutSigning", () => {
   test("submits the initial request by its signing-request id, then by the payout id", async () => {
-    const submissions: Array<{ target: string; requests: SignedTurnkeyActivity[] }> = [];
+    const submissions: Array<{ target: string; requests: SignedActivity[] }> = [];
     const api = {
-      async submitPayoutSignatures(target: string, requests: SignedTurnkeyActivity[]) {
+      async submitPayoutSignatures(target: string, requests: SignedActivity[]) {
         submissions.push({ target, requests });
         if (submissions.length === 1) return payout([signingRequest("round-2", "body-2")]);
         return payout([]);

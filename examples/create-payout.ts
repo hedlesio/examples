@@ -1,8 +1,8 @@
 import { authenticatedOptions, parseCommand, uint32 } from "../src/cli.ts";
-import { turnkeyCredentials } from "../src/config.ts";
+import { apiKeyCredentials } from "../src/config.ts";
 import { completePayoutSigning } from "../src/payout.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
-import { createTurnkeyStamper } from "../src/turnkey.ts";
+import { createStamper } from "../src/stamper.ts";
 import type { PayoutTransferInput } from "../src/types.ts";
 
 await runExample(async () => {
@@ -78,6 +78,6 @@ await runExample(async () => {
     return;
   }
 
-  const payout = await completePayoutSigning(api, created, createTurnkeyStamper(turnkeyCredentials()));
+  const payout = await completePayoutSigning(api, created, createStamper(apiKeyCredentials()));
   printJson(payout);
 });

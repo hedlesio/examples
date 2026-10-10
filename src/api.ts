@@ -10,8 +10,8 @@ import type {
   PayoutResponse,
   RequestSwapQuoteInput,
   SessionResponse,
+  SignedActivity,
   SignedIdentityRequest,
-  SignedTurnkeyActivity,
   SwapQuoteResponse,
   SwapResponse,
 } from "./types.ts";
@@ -128,7 +128,7 @@ export class HedlesApi {
 
   // The stamped signing requests are the top-level JSON array. Before the
   // payout exists, `id` is the signing-request id; afterwards it is the payout id.
-  submitPayoutSignatures(id: string, requests: SignedTurnkeyActivity[]): Promise<PayoutResponse> {
+  submitPayoutSignatures(id: string, requests: SignedActivity[]): Promise<PayoutResponse> {
     return this.request(`/v1/payouts/${encodeURIComponent(id)}/signatures`, {
       method: "POST",
       body: JSON.stringify(requests),
