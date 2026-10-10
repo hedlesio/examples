@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { bitgo } from "@bitgo/utxo-lib";
-import { generateP256KeyPair } from "@turnkey/crypto";
+import { generateKeyPair } from "../src/stamper.ts";
 import { fundingFixture } from "./_helpers/funding-psbt.ts";
 
 const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const userId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const signingRequestId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-const credentials = generateP256KeyPair();
+const credentials = await generateKeyPair();
 let server: ReturnType<typeof Bun.serve>;
 const quoteId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const fixture = fundingFixture("dogecoin", 3);
@@ -128,7 +128,7 @@ beforeAll(() => {
         POST: () => Response.json({ claimTicket: "hp_claim_test", email: "owner@example.com" }),
       },
       [`/v1/tenants/${tenantId}/claim/complete`]: {
-        POST: () => Response.json({ tenantId, rootUserId: "turnkey-user", mode: "cosigned" }),
+        POST: () => Response.json({ tenantId, rootUserId: "root-user", mode: "cosigned" }),
       },
       "/v1/addresses": {
         POST() {
@@ -179,7 +179,7 @@ beforeAll(() => {
             signingRequests: [
               {
                 id: signingRequestId,
-                body: "turnkey-payout-activity",
+                body: "payout-signing-body",
                 token: "binding-token",
               },
             ],
@@ -321,7 +321,7 @@ describe("Bun example commands", () => {
     expect(signatureSubmissions).toHaveLength(1);
     expect(signatureSubmissions[0]).toMatchObject({
       id: signingRequestId,
-      body: "turnkey-payout-activity",
+      body: "payout-signing-body",
       token: "binding-token",
     });
   });

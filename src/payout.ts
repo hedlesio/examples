@@ -1,5 +1,5 @@
 import type { HedlesApi } from "./api.ts";
-import { stampActivities } from "./turnkey.ts";
+import { stampActivities } from "./signing.ts";
 import type { CreatePayoutResponse, PayoutResponse, Stamper } from "./types.ts";
 
 type PayoutSigningApi = Pick<HedlesApi, "submitPayoutSignatures">;

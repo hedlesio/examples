@@ -1,4 +1,4 @@
-import type { TurnkeyCredentials } from "./types.ts";
+import type { ApiKeyCredentials } from "./types.ts";
 
 export const DEFAULT_API_URL = "https://api-dev.hedles.io";
 
@@ -13,7 +13,7 @@ export function requiredEnv(name: string): string {
   return value;
 }
 
-export function turnkeyCredentials(): TurnkeyCredentials {
+export function apiKeyCredentials(): ApiKeyCredentials {
   return {
     publicKey: requiredEnv("HEDLES_API_PUBLIC_KEY"),
     privateKey: requiredEnv("HEDLES_API_PRIVATE_KEY"),

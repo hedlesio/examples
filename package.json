@@ -28,13 +28,12 @@
     "check": "bun run typecheck && bun run lint && bun test"
   },
   "dependencies": {
-    "@bitgo/utxo-lib": "^11.24.4",
-    "@turnkey/api-key-stamper": "^0.6.8",
-    "@turnkey/crypto": "^2.10.1"
+    "@bitgo/utxo-lib": "^11.24.4"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.6",
     "@types/bun": "latest",
-    "typescript": "^7"
+    "typescript": "^7",
+    "@turnkey/api-key-stamper": "^0.6.8"
   }
 }

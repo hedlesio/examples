@@ -1,12 +1,11 @@
-import { generateP256KeyPair } from "@turnkey/crypto";
 import { obtainSession } from "../src/auth.ts";
 import { apiOptions, choice, parseCommand } from "../src/cli.ts";
 import { optionalEnv } from "../src/config.ts";
 import { printJson, publicApi, runExample } from "../src/runtime.ts";
-import { createTurnkeyStamper } from "../src/turnkey.ts";
-import type { TurnkeyCredentials } from "../src/types.ts";
+import { createStamper, generateKeyPair } from "../src/stamper.ts";
+import type { ApiKeyCredentials } from "../src/types.ts";
 
-function claimCredentials(): { credentials: TurnkeyCredentials; generated: boolean } {
+async function claimCredentials(): Promise<{ credentials: ApiKeyCredentials; generated: boolean }> {
   const publicKey = optionalEnv("HEDLES_API_PUBLIC_KEY");
   const privateKey = optionalEnv("HEDLES_API_PRIVATE_KEY");
 
@@ -17,14 +16,7 @@ function claimCredentials(): { credentials: TurnkeyCredentials; generated: boole
     throw new Error("Set both HEDLES_API_PUBLIC_KEY and HEDLES_API_PRIVATE_KEY, or leave both empty");
   }
 
-  const generated = generateP256KeyPair();
-  return {
-    credentials: {
-      publicKey: generated.publicKey,
-      privateKey: generated.privateKey,
-    },
-    generated: true,
-  };
+  return { credentials: await generateKeyPair(), generated: true };
 }
 
 await runExample(async () => {
@@ -60,7 +52,7 @@ await runExample(async () => {
   const tenantId = options.tenantId;
   const claim = await api.beginClaim(tenantId);
   const verified = await api.verifyClaimCode(tenantId, options.claimCode);
-  const { credentials, generated } = claimCredentials();
+  const { credentials, generated } = await claimCredentials();
 
   const completed = await api.completeClaim(tenantId, {
     claimTicket: verified.claimTicket,
@@ -73,7 +65,7 @@ await runExample(async () => {
     },
   });
 
-  const session = await obtainSession(api, createTurnkeyStamper(credentials));
+  const session = await obtainSession(api, createStamper(credentials));
   printJson({
     claim,
     completed,

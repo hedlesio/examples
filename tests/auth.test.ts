@@ -11,11 +11,13 @@ const response: SessionResponse = {
 };
 
 describe("obtainSession", () => {
-  test("stamps the exact organization body returned by bootstrap", async () => {
+  test("stamps the bootstrap organization with a fresh timestamp", async () => {
     let signedRequest: SignedIdentityRequest | undefined;
     const stamper: Stamper = {
       async stamp(input) {
-        expect(input).toBe('{"organizationId":"org-test"}');
+        const body = JSON.parse(input) as { organizationId: string; timestampMs: string };
+        expect(body.organizationId).toBe("org-test");
+        expect(Math.abs(Number(body.timestampMs) - Date.now())).toBeLessThan(5_000);
         return { stampHeaderName: "X-Stamp", stampHeaderValue: "signed" };
       },
     };
@@ -30,11 +32,8 @@ describe("obtainSession", () => {
     };
 
     expect(await obtainSession(api, stamper)).toEqual(response);
-    expect(signedRequest).toEqual({
-      body: '{"organizationId":"org-test"}',
-      stampHeaderName: "X-Stamp",
-      stampHeaderValue: "signed",
-    });
+    expect(signedRequest).toMatchObject({ stampHeaderName: "X-Stamp", stampHeaderValue: "signed" });
+    expect(JSON.parse(signedRequest?.body ?? "{}")).toMatchObject({ organizationId: "org-test" });
   });
 
   test("uses an explicit organization id without bootstrapping", async () => {
@@ -48,7 +47,7 @@ describe("obtainSession", () => {
     };
     const stamper: Stamper = {
       async stamp(input) {
-        expect(input).toBe('{"organizationId":"org-explicit"}');
+        expect(JSON.parse(input)).toMatchObject({ organizationId: "org-explicit" });
         return { stampHeaderName: "X-Stamp", stampHeaderValue: "signed" };
       },
     };
