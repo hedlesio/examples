@@ -32,8 +32,17 @@ Authenticated commands use `HEDLES_SESSION_TOKEN` when set; otherwise they creat
 key pair. Signing needs nothing beyond WebCrypto: a stamp is an ECDSA P-256 signature over the exact bytes
 of a body, sent in the `X-Stamp` header as base64url JSON `{ publicKey, scheme, signature }` with the
 DER-encoded signature in hex. `src/stamper.ts` is the whole implementation, including key generation and a
-verifier you can port to another language. The login body carries a `timestampMs`; the API rejects stale
-ones, so a captured login stamp is worth minutes, not forever. Cosigned payouts always need the key pair to stamp their signing requests.
+verifier you can port to another language. Login always fetches `/v1/sessions/bootstrap` and stamps its
+exact `body` string without parsing or rebuilding it. The server-issued challenge expires after five
+minutes and can create only one session. Obtain a fresh challenge after expiry, a successful login,
+or an uncertain response. Cosigned payouts always need the key pair to stamp their signing requests.
+
+These examples require the challenge-enabled gateway from
+[hyperpay PR #910](https://github.com/hedlesio/hyperpay/pull/910). Coordinate the examples, gateway, and
+dashboard rollout: older callers that construct `{organizationId, timestampMs}` themselves will receive
+`401` after enforcement. Already-open dashboard bundles must be refreshed after the new Pages build is
+promoted. New clients require the bootstrap `body`; deploy the gateway migration and API before using
+them. Do not add a compatibility bypass that accepts replayable login proofs.
 
 ## Commands
 
@@ -58,8 +67,9 @@ immediately.
 bun run session
 ```
 
-Signs an identity proof and returns a one-hour Hedles token. Organization bootstrap is automatic;
-`--organization-id` overrides it.
+Signs a fresh server-issued challenge and returns a one-hour Hedles token. Bootstrap runs on every
+login, including when `--organization-id` selects a known organization for a credential registered in
+multiple organizations.
 
 ### Create a wallet address
 

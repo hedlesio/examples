@@ -109,12 +109,29 @@ function swap() {
 }
 
 beforeAll(() => {
+  const challenges = new Set<string>();
   server = Bun.serve({
     port: 0,
     routes: {
-      "/v1/sessions/bootstrap": Response.json({ organizationId: "org-test" }),
+      "/v1/sessions/bootstrap": {
+        GET(request) {
+          const organizationId = new URL(request.url).searchParams.get("organizationId") ?? "org-test";
+          const body = JSON.stringify({
+            organizationId,
+            challenge: crypto.randomUUID(),
+            timestampMs: Date.now().toString(),
+          });
+          challenges.add(body);
+          return Response.json({ organizationId, body, expiresIn: 300 });
+        },
+      },
       "/v1/sessions": {
-        POST: () => Response.json(session()),
+        async POST(request) {
+          const { signedRequest } = (await request.json()) as { signedRequest: { body: string } };
+          if (!challenges.delete(signedRequest.body))
+            return Response.json({ code: "stamp_verification_failed" }, { status: 401 });
+          return Response.json(session());
+        },
       },
       [`/v1/tenants/${tenantId}/claim/begin`]: {
         POST: () =>

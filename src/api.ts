@@ -9,6 +9,7 @@ import type {
   PayinResponse,
   PayoutResponse,
   RequestSwapQuoteInput,
+  SessionBootstrapResponse,
   SessionResponse,
   SignedActivity,
   SignedIdentityRequest,
@@ -52,8 +53,9 @@ export class HedlesApi {
     return new HedlesApi(this.baseUrl, sessionToken);
   }
 
-  bootstrapSession(): Promise<{ organizationId: string }> {
-    return this.request("/v1/sessions/bootstrap");
+  bootstrapSession(organizationId?: string): Promise<SessionBootstrapResponse> {
+    const query = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
+    return this.request(`/v1/sessions/bootstrap${query}`);
   }
 
   createSession(signedRequest: SignedIdentityRequest): Promise<SessionResponse> {

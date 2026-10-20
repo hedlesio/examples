@@ -5,11 +5,22 @@ let server: ReturnType<typeof Bun.serve>;
 let api: HedlesApi;
 let lastAuthorization: string | null;
 let lastBody: unknown;
+let bootstrapContext: string | null;
 
 beforeAll(() => {
   server = Bun.serve({
     port: 0,
     routes: {
+      "/v1/sessions/bootstrap": {
+        GET(request) {
+          bootstrapContext = new URL(request.url).searchParams.get("organizationId");
+          return Response.json({
+            organizationId: bootstrapContext ?? "org-default",
+            body: '{ "challenge": "opaque" }',
+            expiresIn: 300,
+          });
+        },
+      },
       "/v1/payins": {
         async POST(request) {
           lastAuthorization = request.headers.get("Authorization");
@@ -97,6 +108,17 @@ afterAll(() => {
 });
 
 describe("HedlesApi", () => {
+  test("gets the challenge and encodes an optional organization context", async () => {
+    expect(await api.bootstrapSession()).toMatchObject({
+      organizationId: "org-default",
+      body: '{ "challenge": "opaque" }',
+      expiresIn: 300,
+    });
+    expect(bootstrapContext).toBeNull();
+    const context = "org:a/b &?";
+    expect((await api.bootstrapSession(context)).organizationId).toBe(context);
+    expect(bootstrapContext).toBe(context);
+  });
   test("sends bearer authentication and JSON bodies", async () => {
     const result = await api.createPayin({
       chainKey: "chain",

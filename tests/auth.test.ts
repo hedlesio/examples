@@ -11,47 +11,57 @@ const response: SessionResponse = {
 };
 
 describe("obtainSession", () => {
-  test("stamps the bootstrap organization with a fresh timestamp", async () => {
-    let signedRequest: SignedIdentityRequest | undefined;
-    const stamper: Stamper = {
-      async stamp(input) {
-        const body = JSON.parse(input) as { organizationId: string; timestampMs: string };
-        expect(body.organizationId).toBe("org-test");
-        expect(Math.abs(Number(body.timestampMs) - Date.now())).toBeLessThan(5_000);
-        return { stampHeaderName: "X-Stamp", stampHeaderValue: "signed" };
-      },
-    };
+  for (const organizationId of [undefined, "org-explicit"]) {
+    test(`stamps a fresh bootstrap body unchanged for ${organizationId ?? "the default context"}`, async () => {
+      const issued: string[] = [];
+      const stamped: string[] = [];
+      const submitted: SignedIdentityRequest[] = [];
+      const requestedContexts: (string | undefined)[] = [];
+      const stamper: Stamper = {
+        async stamp(body) {
+          stamped.push(body);
+          return { stampHeaderName: "X-Stamp", stampHeaderValue: "signed" };
+        },
+      };
+      const api = {
+        async bootstrapSession(context?: string) {
+          requestedContexts.push(context);
+          const resolved = context ?? "org-default";
+          const body = `{ "organizationId": "${resolved}", "challenge": "${crypto.randomUUID()}", "timestampMs": "1" }`;
+          issued.push(body);
+          return { organizationId: resolved, body, expiresIn: 300 };
+        },
+        async createSession(request: SignedIdentityRequest) {
+          submitted.push(request);
+          return response;
+        },
+      };
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        expect(await obtainSession(api, stamper, organizationId)).toEqual(response);
+      }
+      expect(requestedContexts).toEqual([organizationId, organizationId]);
+      expect(stamped).toEqual(issued);
+      expect(submitted.map((request) => request.body)).toEqual(issued);
+      expect(issued[0]).not.toBe(issued[1]);
+    });
+  }
+
+  test("rejects an unusable bootstrap before stamping", async () => {
     const api = {
       async bootstrapSession() {
-        return { organizationId: "org-test" };
-      },
-      async createSession(request: SignedIdentityRequest) {
-        signedRequest = request;
-        return response;
-      },
-    };
-
-    expect(await obtainSession(api, stamper)).toEqual(response);
-    expect(signedRequest).toMatchObject({ stampHeaderName: "X-Stamp", stampHeaderValue: "signed" });
-    expect(JSON.parse(signedRequest?.body ?? "{}")).toMatchObject({ organizationId: "org-test" });
-  });
-
-  test("uses an explicit organization id without bootstrapping", async () => {
-    const api = {
-      async bootstrapSession() {
-        throw new Error("bootstrap must not be called");
+        return { organizationId: "org", body: "", expiresIn: 300 };
       },
       async createSession() {
-        return response;
+        throw new Error("Session must not be submitted");
       },
     };
     const stamper: Stamper = {
-      async stamp(input) {
-        expect(JSON.parse(input)).toMatchObject({ organizationId: "org-explicit" });
-        return { stampHeaderName: "X-Stamp", stampHeaderValue: "signed" };
+      async stamp() {
+        throw new Error("Body must not be stamped");
       },
     };
-
-    expect(await obtainSession(api, stamper, "org-explicit")).toEqual(response);
+    await expect(obtainSession(api, stamper)).rejects.toThrow(
+      "Login bootstrap did not return a challenge body",
+    );
   });
 });
