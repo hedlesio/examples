@@ -59,22 +59,23 @@ export interface AddressEntry {
 }
 
 export interface CreatePayinInput {
-  chainKey: string;
-  assetKey: string;
+  chain: string;
+  asset: string;
   amount: string;
   reference?: string;
   expiresIn?: number;
   addressId?: string;
 }
 
-export type PayinClassification = "matched" | "expired" | "pending";
+export type PayinClassification = "matched" | "underpaid" | "overpaid" | "partial" | "expired" | "pending";
+export type PayinFailureReason = "receipt_missing" | "transaction_reverted" | "transaction_reorged";
 
 export interface PayinResponse {
   id: string;
   status: string;
   reference: string | null;
-  chainKey: string;
-  assetKey: string;
+  chain: string;
+  asset: string;
   address: string;
   addressId: string;
   fromAddress: string | null;
@@ -83,6 +84,8 @@ export interface PayinResponse {
   txHash: string | null;
   confirmations: number;
   classification: PayinClassification;
+  requestPayinId: string | null;
+  receivedTotal: string | null;
   createdAt: string;
   confirmedAt: string | null;
   expiresAt: string | null;
@@ -243,22 +246,39 @@ export interface WebhookTransfer {
 export type WebhookEvent =
   | {
       event: "payin.pending";
-      data: { payinId: string; txHash: string; amount: string; chain: string; fromAddress: string | null };
+      data: {
+        payinId: string;
+        txHash: string;
+        amount: string;
+        chain: string;
+        asset: string;
+        fromAddress: string | null;
+      };
     }
   | {
       event: "payin.confirmed";
       data: {
         payinId: string;
-        txHash: string;
-        blockNumber: number;
-        confirmations: number;
+        txHash: string | null;
+        blockNumber: number | null;
+        confirmations: number | null;
         chain: string;
+        asset: string;
         fromAddress: string | null;
+        amount: string | null;
+        expectedAmount: string | null;
+        requestPayinId: string | null;
+        receivedTotal: string | null;
+        classification: PayinClassification;
       };
     }
   | {
       event: "payin.expired";
-      data: { payinId: string };
+      data: { payinId: string; chain: string; asset: string };
+    }
+  | {
+      event: "payin.failed";
+      data: { payinId: string; chain: string; asset: string; txHash: string; reason: PayinFailureReason };
     }
   | {
       event: "payout.created";

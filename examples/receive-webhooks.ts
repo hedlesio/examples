@@ -20,9 +20,13 @@ function describe(event: WebhookEvent): string {
     case "payin.pending":
       return `payin ${event.data.payinId} seen in ${event.data.txHash} for ${event.data.amount}`;
     case "payin.confirmed":
-      return `payin ${event.data.payinId} confirmed at block ${event.data.blockNumber}`;
+      return event.data.txHash === null
+        ? `invoice ${event.data.payinId} credited ${event.data.receivedTotal} (${event.data.classification})`
+        : `payin ${event.data.payinId} confirmed at block ${event.data.blockNumber}`;
     case "payin.expired":
       return `payin ${event.data.payinId} expired unpaid`;
+    case "payin.failed":
+      return `payin ${event.data.payinId} failed: ${event.data.reason}; reconcile canonical re-detections before closing the request`;
     case "payout.created":
       return `payout ${event.data.payoutId} prepared with ${event.data.transfers.length} transfer(s)`;
     case "payout.broadcast":

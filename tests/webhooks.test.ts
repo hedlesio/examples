@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { WebhookEvent } from "../src/types.ts";
 import {
   parseSignatureHeader,
   signPayload,
@@ -99,6 +100,54 @@ describe("webhook verification", () => {
 });
 
 describe("webhook request handling", () => {
+  test.each(["receipt_missing", "transaction_reorged", "transaction_reverted"] as const)(
+    "accepts a signed payin.failed event with %s",
+    async (reason) => {
+      const event = {
+        event: "payin.failed",
+        data: {
+          payinId: "5f1b0a4e-2c3d-4f5a-9b8c-7d6e5f4a3b2c",
+          chain: "ethereum",
+          asset: "ETH",
+          txHash: "0xabc",
+          reason,
+        },
+      } satisfies WebhookEvent;
+      const delivery = await verifyRequest(
+        deliveryRequest({ body: JSON.stringify(event) }),
+        SECRET,
+        Number.MAX_SAFE_INTEGER,
+      );
+      expect(delivery.event).toEqual(event);
+      expect(delivery.idempotencyKey).toBe("evt_2f4c1a9b7e30");
+    },
+  );
+
+  test("accepts aggregate invoice totals without inventing transaction evidence", async () => {
+    const event = {
+      event: "payin.confirmed",
+      data: {
+        payinId: "5f1b0a4e-2c3d-4f5a-9b8c-7d6e5f4a3b2c",
+        chain: "ethereum",
+        asset: "ETH",
+        txHash: null,
+        blockNumber: null,
+        confirmations: null,
+        fromAddress: null,
+        amount: "105",
+        expectedAmount: "100",
+        requestPayinId: null,
+        receivedTotal: "105",
+        classification: "overpaid",
+      },
+    } satisfies WebhookEvent;
+    const delivery = await verifyRequest(
+      deliveryRequest({ body: JSON.stringify(event) }),
+      SECRET,
+      Number.MAX_SAFE_INTEGER,
+    );
+    expect(delivery.event).toEqual(event);
+  });
   test("returns the parsed event and idempotency key", async () => {
     const delivery = await verifyRequest(deliveryRequest(), SECRET, Number.MAX_SAFE_INTEGER);
     expect(delivery.idempotencyKey).toBe("evt_2f4c1a9b7e30");

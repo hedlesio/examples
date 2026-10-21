@@ -38,8 +38,8 @@ await runExample(async () => {
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const expiresIn = positiveInteger(options.expiresIn, "--expires-in");
   const payin = await api.createPayin({
-    chainKey: options.chain,
-    assetKey: options.asset,
+    chain: options.chain,
+    asset: options.asset,
     amount: options.amount,
     ...(options.reference ? { reference: options.reference } : {}),
     expiresIn,

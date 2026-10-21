@@ -11,6 +11,7 @@ export const WEBHOOK_EVENT_TYPES = [
   "payin.pending",
   "payin.confirmed",
   "payin.expired",
+  "payin.failed",
   "payout.created",
   "payout.broadcast",
   "payout.settled",
