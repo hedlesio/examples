@@ -63,6 +63,8 @@ Signs an identity proof and returns a one-hour Hedles token. Organization bootst
 
 ### Create a wallet address
 
+Requires an Ops or Admin session. Reader and Collector sessions receive `403 insufficient_role`.
+
 ```sh
 bun run wallet
 bun run wallet --chain-type xrp
