@@ -131,7 +131,14 @@ beforeAll(() => {
         POST: () => Response.json({ tenantId, rootUserId: "root-user", mode: "cosigned" }),
       },
       "/v1/addresses": {
-        POST() {
+        POST(request) {
+          if (
+            ["Bearer hp_sess_reader", "Bearer hp_sess_collector"].includes(
+              request.headers.get("authorization") ?? "",
+            )
+          ) {
+            return Response.json({ code: "insufficient_role" }, { status: 403 });
+          }
           walletCalls += 1;
           return Response.json({
             id: "address-cli",
@@ -231,7 +238,7 @@ function testEnvironment(overrides: Record<string, string> = {}): Record<string,
   };
 }
 
-async function run(script: string, args: string[], environment: Record<string, string>): Promise<unknown> {
+async function runCommand(script: string, args: string[], environment: Record<string, string>) {
   const child = Bun.spawn(["bun", "run", script, ...args], {
     cwd: `${import.meta.dir}/..`,
     env: environment,
@@ -243,11 +250,33 @@ async function run(script: string, args: string[], environment: Record<string, s
     new Response(child.stderr).text(),
     child.exited,
   ]);
+  return { stdout, stderr, exitCode };
+}
+
+async function run(script: string, args: string[], environment: Record<string, string>): Promise<unknown> {
+  const { stdout, stderr, exitCode } = await runCommand(script, args, environment);
   expect(exitCode, stderr).toBe(0);
   return JSON.parse(stdout);
 }
 
 describe("Bun example commands", () => {
+  test.each(["reader", "collector"])("wallet reports insufficient_role for a %s session", async (role) => {
+    const before = walletCalls;
+    const result = await runCommand(
+      "wallet",
+      ["--api-url", `http://127.0.0.1:${server.port}`],
+      testEnvironment({ HEDLES_SESSION_TOKEN: `hp_sess_${role}` }),
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    const errorStart = result.stderr.indexOf("{");
+    expect(JSON.parse(result.stderr.slice(errorStart, result.stderr.lastIndexOf("}") + 1))).toMatchObject({
+      status: 403,
+      body: { code: "insufficient_role" },
+    });
+    expect(walletCalls).toBe(before);
+  });
+
   test("run independently through their complete HTTP flows", async () => {
     const sessionResult = (await run(
       "session",

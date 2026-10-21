@@ -4,7 +4,7 @@ import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 await runExample(async () => {
   const options = parseCommand({
     name: "wallet",
-    description: "Create a tenant wallet address.",
+    description: "Create a tenant wallet address. Requires an Ops or Admin session.",
     options: {
       ...authenticatedOptions,
       chainType: {
