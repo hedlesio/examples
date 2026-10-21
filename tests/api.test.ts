@@ -18,8 +18,8 @@ beforeAll(() => {
             id: "payin-1",
             status: "awaiting_payment",
             reference: null,
-            chainKey: "chain",
-            assetKey: "asset",
+            chain: "chain",
+            asset: "asset",
             address: "deposit-address",
             addressId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
             fromAddress: null,
@@ -27,7 +27,9 @@ beforeAll(() => {
             amount: null,
             txHash: null,
             confirmations: 0,
-            classification: "matched",
+            classification: "pending",
+            requestPayinId: null,
+            receivedTotal: "0",
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
@@ -99,17 +101,17 @@ afterAll(() => {
 describe("HedlesApi", () => {
   test("sends bearer authentication and JSON bodies", async () => {
     const result = await api.createPayin({
-      chainKey: "chain",
-      assetKey: "asset",
+      chain: "chain",
+      asset: "asset",
       amount: "1000",
     });
 
     expect(result.id).toBe("payin-1");
-    expect(result.classification).toBe("matched");
+    expect(result.classification).toBe("pending");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
-      chainKey: "chain",
-      assetKey: "asset",
+      chain: "chain",
+      asset: "asset",
       amount: "1000",
     });
   });

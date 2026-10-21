@@ -144,11 +144,23 @@ Delivery is at-least-once. A non-2xx response or a response slower than 10 secon
 carries the original idempotency key, so key side effects on it. Acknowledge with a 2xx immediately and do the
 work afterwards.
 
-Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payout.created`, `payout.broadcast`,
+Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payin.failed`, `payout.created`, `payout.broadcast`,
 `payout.settled`, `payout.failed`, `swap.accepted`, `swap.executing`, `swap.executed`, `swap.expired`,
 `swap.failed`. Payloads are a discriminated union on `event` (see `src/types.ts`); payout payloads carry
 the per-movement `transfers` array, so check each transfer's status rather than assuming every movement
 settled.
+
+Pay-in requests use canonical `chain` and `asset` fields. A fixed-amount request
+aggregates confirmed deposits through `receivedTotal`; deposits link back with
+`requestPayinId` and report `partial`, `matched`, or `overpaid`. Aggregate invoice
+events have null transaction hash, block height, confirmation depth, and sender;
+reconcile individual transactions from deposit events. Already-linked deposits
+still count if they finalize after the invoice fills or is cancelled.
+
+`payin.failed` carries `receipt_missing`, `transaction_reorged`, or
+`transaction_reverted`. Only `transaction_reverted` is final: the other two may
+reopen and later confirm when a canonical rescan preserves the deposit identity
+and economics. Do not permanently close an order solely on a recoverable event.
 
 ### Swap between assets
 
