@@ -101,6 +101,13 @@ bun run payout \
 `--reference` is optional. XRPL supports `--destination-tag <uint32>`. Repeat `--to` and `--amount` in pairs
 for a multisend from an EVM or Zcash omnibus; `all` sweeps the balance for a single recipient.
 
+The typed `createPayout` input also accepts `executionMode: "independent" | "atomic"`,
+and `PayoutResponse.executionMode` reports the guarantee applied. EVM omnibus payouts support
+both modes (independent by default). EVM/TRON deposit sweeps, UTXO, and Solana accept only
+atomic; XRP and TRON omnibus payouts accept only independent. Omission keeps the source default;
+unsupported explicit modes return `400 validation_error`. Atomic means recipient and fee
+movements succeed together, including when on-chain state changes after preflight.
+
 A payout is one single-asset transaction: `POST /v1/payouts` takes a top-level `chain`, `asset`, and
 `fromAddress` plus one or more `transfers` (`toAddress`, `amount`, optional `destinationTag`). It never
 accepts signatures. When client signing is required, the response carries opaque `signingRequests`

@@ -94,11 +94,14 @@ export interface PayoutTransferInput {
   destinationTag?: number;
 }
 
+export type PayoutExecutionMode = "independent" | "atomic";
+
 export interface CreatePayoutInput {
   chain: string;
   asset: string;
   fromAddress: string;
   transfers: PayoutTransferInput[];
+  executionMode?: PayoutExecutionMode;
   reference?: string;
 }
 
@@ -142,6 +145,7 @@ export interface PayoutSigningError {
 }
 
 export interface PayoutResponse {
+  executionMode: PayoutExecutionMode;
   id: string;
   chain: string;
   asset: string;

@@ -16,6 +16,7 @@ function payout(signingRequests: SigningRequest[]): PayoutResponse {
     toAddress: "to",
     amount: "1000",
     feeTotal: null,
+    executionMode: "independent",
     kind: "payout",
     status: complete ? "broadcast" : "pending",
     unsignedTx: complete ? null : "unsigned",
