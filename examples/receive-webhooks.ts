@@ -17,6 +17,8 @@ const handled = new Set<string>();
 
 function describe(event: WebhookEvent): string {
   switch (event.event) {
+    case "omnibus.low_gas":
+      return `omnibus ${event.data.address} is low on gas on ${event.data.chain}`;
     case "payin.pending":
       return `payin ${event.data.payinId} seen in ${event.data.txHash} for ${event.data.amount}`;
     case "payin.confirmed":

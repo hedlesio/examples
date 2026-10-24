@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { obtainSession } from "../src/auth.ts";
-import type { SessionResponse, SignedIdentityRequest, Stamper } from "../src/types.ts";
+import type { BearerSessionResponse, SignedIdentityRequest, Stamper } from "../src/types.ts";
 
-const response: SessionResponse = {
+const response: BearerSessionResponse = {
   session: "hp_sess_test",
   tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   tenantKind: "merchant",
@@ -64,4 +64,22 @@ describe("obtainSession", () => {
       "Login bootstrap did not return a signing body",
     );
   });
+});
+
+test("rejects a browser-only session response in the bearer-token helper", async () => {
+  const { session: _session, ...browserResponse } = response;
+  const api = {
+    async bootstrapSession() {
+      return { organizationId: "org", body: "{}", expiresIn: 300 };
+    },
+    async createSession() {
+      return browserResponse;
+    },
+  };
+  const stamper: Stamper = {
+    async stamp() {
+      return { stampHeaderName: "X-Stamp", stampHeaderValue: "signed" };
+    },
+  };
+  await expect(obtainSession(api, stamper)).rejects.toThrow("bearer session token");
 });
