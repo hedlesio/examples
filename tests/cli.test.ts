@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { bitgo } from "@bitgo/utxo-lib";
-import { generateKeyPair } from "../src/stamper.ts";
+import { generateKeyPair, verifyStamp } from "../src/stamper.ts";
 import { fundingFixture } from "./_helpers/funding-psbt.ts";
 
 const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -112,9 +112,33 @@ beforeAll(() => {
   server = Bun.serve({
     port: 0,
     routes: {
-      "/v1/sessions/bootstrap": Response.json({ organizationId: "org-test" }),
+      "/v1/sessions/bootstrap": {
+        GET(request) {
+          const organizationId = new URL(request.url).searchParams.get("organizationId") ?? "org-test";
+          const body = JSON.stringify({
+            organizationId,
+            timestampMs: Date.now(),
+          });
+          return Response.json({ organizationId, body, expiresIn: 300 });
+        },
+      },
       "/v1/sessions": {
-        POST: () => Response.json(session()),
+        async POST(request) {
+          const { signedRequest } = (await request.json()) as {
+            signedRequest: { body: string; stampHeaderName: string; stampHeaderValue: string };
+          };
+          const proof = JSON.parse(signedRequest.body) as { organizationId?: unknown; timestampMs?: unknown };
+          if (
+            typeof proof.organizationId !== "string" ||
+            !proof.organizationId ||
+            typeof proof.timestampMs !== "number" ||
+            !Number.isSafeInteger(proof.timestampMs) ||
+            Math.abs(Date.now() - proof.timestampMs) > 300_000 ||
+            !(await verifyStamp(signedRequest.stampHeaderValue, signedRequest.body))
+          )
+            return Response.json({ code: "stamp_verification_failed" }, { status: 401 });
+          return Response.json(session());
+        },
       },
       [`/v1/tenants/${tenantId}/claim/begin`]: {
         POST: () =>
