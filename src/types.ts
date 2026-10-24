@@ -28,6 +28,12 @@ export interface SessionResponse {
   expiresIn: number;
 }
 
+export interface SessionBootstrapResponse {
+  organizationId: string;
+  body: string;
+  expiresIn: number;
+}
+
 export interface ClaimResponse {
   tenantId: string;
   rootUserId: string;

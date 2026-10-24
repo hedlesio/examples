@@ -13,7 +13,7 @@ import {
   verifyStamp,
 } from "../src/stamper.ts";
 
-const body = JSON.stringify({ organizationId: "org-test", timestampMs: "1760000000000" });
+const body = JSON.stringify({ organizationId: "org-test", timestampMs: 1760000000000 });
 
 describe("stamper", () => {
   test("generates a compressed P-256 key pair in the registered format", async () => {
