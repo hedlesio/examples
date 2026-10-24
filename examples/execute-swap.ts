@@ -1,3 +1,4 @@
+import { CHAINS } from "../src/api-values.ts";
 import { authenticatedOptions, choice, parseCommand } from "../src/cli.ts";
 import { requiredEnv } from "../src/config.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
@@ -64,13 +65,13 @@ await runExample(async () => {
     return;
   }
 
-  const sellChain = requireOption(options.sellChain, "--sell-chain");
+  const sellChain = choice(requireOption(options.sellChain, "--sell-chain"), "--sell-chain", CHAINS);
   const result = await executeSwap(
     api,
     {
       sellChain,
       sellAsset: requireOption(options.sellAsset, "--sell-asset"),
-      buyChain: requireOption(options.buyChain, "--buy-chain"),
+      buyChain: choice(requireOption(options.buyChain, "--buy-chain"), "--buy-chain", CHAINS),
       buyAsset: requireOption(options.buyAsset, "--buy-asset"),
       amount: requireOption(options.amount, "--amount"),
       side: choice(options.side, "--side", ["sell", "buy"]),

@@ -1,351 +1,46 @@
-export interface Stamp {
-  stampHeaderName: string;
-  stampHeaderValue: string;
-}
+import type { components, paths } from "./api-schema.ts";
 
+type Json<T> = T extends { content: { "application/json": infer Body } } ? Body : never;
+export type Chain = components["schemas"]["Chain"];
+export type SessionResponse = Json<paths["/v1/sessions"]["post"]["responses"][200]>;
+export type BearerSessionResponse = SessionResponse & { session: string };
+export type SessionBootstrapResponse = Json<paths["/v1/sessions/bootstrap"]["get"]["responses"][200]>;
+export type SignedIdentityRequest = Json<paths["/v1/sessions"]["post"]["requestBody"]>["signedRequest"];
+export type Stamp = Pick<SignedIdentityRequest, "stampHeaderName" | "stampHeaderValue">;
 export interface Stamper {
   stamp(input: string): Promise<Stamp>;
 }
-
-// A P-256 key pair: compressed public key (hex, 66 chars) registered at claim
-// time, and the 32-byte private scalar (hex) that signs request bodies.
 export interface ApiKeyCredentials {
   publicKey: string;
   privateKey: string;
 }
-
-export interface SignedIdentityRequest {
-  body: string;
-  stampHeaderName: string;
-  stampHeaderValue: string;
-}
-
-export interface SessionResponse {
-  session: string;
-  tenantId: string;
-  tenantKind: "platform" | "merchant";
-  userId: string;
-  expiresIn: number;
-}
-
-export interface SessionBootstrapResponse {
-  organizationId: string;
-  body: string;
-  expiresIn: number;
-}
-
-export interface ClaimResponse {
-  tenantId: string;
-  rootUserId: string;
-  mode: "custodial" | "cosigned";
-}
-
-export interface Paginated<T> {
-  items: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export interface AddressEntry {
-  id: string;
-  tenant_id: string;
-  chainType: string;
-  address: string;
-  address_kind: string;
-  address_role: string;
-  status: string;
-  isSignable: boolean;
-  derivation_path: string | null;
-  created_at: string;
-  updated_at: string;
-  deletedAt: string | null;
-  whitelistedAt: string | null;
-  chains: Array<{ chainKey: string }>;
-}
-
-export interface CreatePayinInput {
-  chainKey: string;
-  assetKey: string;
-  amount: string;
-  reference?: string;
-  expiresIn?: number;
-  addressId?: string;
-}
-
-export type PayinClassification = "matched" | "expired" | "pending";
-
-export interface PayinResponse {
-  id: string;
-  status: string;
-  reference: string | null;
-  chainKey: string;
-  assetKey: string;
-  address: string;
-  addressId: string;
-  fromAddress: string | null;
-  expectedAmount: string | null;
-  amount: string | null;
-  txHash: string | null;
-  confirmations: number;
-  classification: PayinClassification;
-  createdAt: string;
-  confirmedAt: string | null;
-  expiresAt: string | null;
-}
-
-export interface PayoutTransferInput {
-  toAddress: string;
-  amount: string;
-  destinationTag?: number;
-}
-
-export interface CreatePayoutInput {
-  chain: string;
-  asset: string;
-  fromAddress: string;
-  transfers: PayoutTransferInput[];
-  reference?: string;
-}
-
-export interface SigningRequest {
-  id: string;
-  body: string;
-  token: string;
-}
-
-export interface SignedActivity {
-  id: string;
-  body: string;
-  token: string;
-  stamp: {
-    name: string;
-    value: string;
-  };
-}
-
-export type TransferStatus = "pending" | "settled" | "failed";
-
-export interface TransferRow {
-  id: string;
-  position: number;
-  kind: "recipient" | "fee";
-  asset: string;
-  fromAddress: string;
-  toAddress: string;
-  amount: string;
-  status: TransferStatus;
-  error: string | null;
-  createdAt: string;
-  settledAt: string | null;
-}
-
-export interface PayoutSigningError {
-  code: string;
-  chain?: string;
-  category?: string;
-  detail?: string;
-}
-
-export interface PayoutResponse {
-  id: string;
-  chain: string;
-  asset: string;
-  fromAddress: string;
-  toAddress: string;
-  amount: string;
-  feeTotal: string | null;
-  kind: "payout" | "deposit_account_payout";
-  status: "pending" | "prepared" | "ready" | "signed" | "broadcast" | "settled" | "failed";
-  unsignedTx: string | null;
-  signedTx: string | null;
-  txHash: string | null;
-  nonce: string | null;
-  confirmations: number;
-  requiredConfirmations: number;
-  reference: string | null;
-  lastError: string | null;
-  transfers: TransferRow[];
-  createdAt: string;
-  broadcastAt: string | null;
-  settledAt: string | null;
-  signingRequests: SigningRequest[];
-  signingError?: PayoutSigningError;
-}
-
-export interface PayoutPreparation {
-  signingRequests: SigningRequest[];
-}
-
-export type CreatePayoutResponse = PayoutResponse | PayoutPreparation;
-
-export interface RequestSwapQuoteInput {
-  sellChain: string;
-  sellAsset: string;
-  buyChain: string;
-  buyAsset: string;
-  amount: string;
-  side: "sell" | "buy";
-  senderAddress: string;
-  recipientAddress: string;
-}
-
-export interface SwapQuoteResponse {
-  id: string;
-  status: "quoted" | "expired" | "accepted";
-  sellChain: string;
-  sellAsset: string;
-  buyChain: string;
-  buyAsset: string;
-  sellAmount: string;
-  quotedBuyAmount: string;
-  minimumBuyAmount: string;
-  quotedRate: string;
-  venueFundingAddress: string;
-  fundingMemo: string | null;
-  fundingTransaction: string;
-  token: string;
-  expiresAt: string;
-  createdAt: string;
-}
-
-export interface AcceptSwapQuoteInput {
-  quoteId: string;
-  token: string;
-  signature: string;
-}
-
-export interface SwapResponse {
-  id: string;
-  status: "quoted" | "pending" | "executing" | "executed" | "expired" | "failed";
-  sellChain: string;
-  sellAsset: string;
-  buyChain: string;
-  buyAsset: string;
-  sellAmount: string;
-  quotedBuyAmount: string;
-  minimumBuyAmount: string;
-  quotedRate: string;
-  venueFundingAddress: string;
-  fundingTxHash: string;
-  failureReason: string | null;
-  executedAt: string | null;
-  acceptedAt: string;
-  createdAt: string;
-}
-
-export interface WebhookTransfer {
-  transferId: string;
-  position: number;
-  kind: "recipient" | "fee";
-  asset: string;
-  fromAddress: string;
-  toAddress: string;
-  amount: string;
-  status: TransferStatus;
-  error: string | null;
-}
-
-export type WebhookEvent =
-  | {
-      event: "payin.pending";
-      data: { payinId: string; txHash: string; amount: string; chain: string; fromAddress: string | null };
-    }
-  | {
-      event: "payin.confirmed";
-      data: {
-        payinId: string;
-        txHash: string;
-        blockNumber: number;
-        confirmations: number;
-        chain: string;
-        fromAddress: string | null;
-      };
-    }
-  | {
-      event: "payin.expired";
-      data: { payinId: string };
-    }
-  | {
-      event: "payout.created";
-      data: {
-        payoutId: string;
-        amount: string;
-        chain: string;
-        asset: string;
-        fromAddress: string;
-        toAddress: string;
-        transfers: WebhookTransfer[];
-      };
-    }
-  | {
-      event: "payout.broadcast";
-      data: {
-        payoutId: string;
-        txHash: string;
-        amount: string;
-        chain: string;
-        asset: string;
-        transfers: WebhookTransfer[];
-      };
-    }
-  | {
-      event: "payout.settled";
-      data: {
-        payoutId: string;
-        txHash: string;
-        amount: string;
-        chain: string;
-        asset: string;
-        transfers: WebhookTransfer[];
-      };
-    }
-  | {
-      event: "payout.failed";
-      data: {
-        payoutId: string;
-        amount: string;
-        chain: string;
-        asset: string;
-        reason: string;
-        transfers: WebhookTransfer[];
-      };
-    }
-  | {
-      event: "swap.accepted";
-      data: {
-        swapId: string;
-        sellChain: string;
-        sellAsset: string;
-        buyChain: string;
-        buyAsset: string;
-        sellAmount: string;
-        quotedBuyAmount: string;
-        minimumBuyAmount: string;
-        venueFundingAddress: string;
-        fundingTxHash: string;
-      };
-    }
-  | {
-      event: "swap.executing";
-      data: { swapId: string; fundingTxHash: string; trackingReference: string | null };
-    }
-  | {
-      event: "swap.executed";
-      data: {
-        swapId: string;
-        sellAmount: string;
-        quotedBuyAmount: string;
-        minimumBuyAmount: string;
-        quotedRate: string;
-        executedAt: string;
-      };
-    }
-  | {
-      event: "swap.expired";
-      data: { swapId: string };
-    }
-  | {
-      event: "swap.failed";
-      data: { swapId: string; reason: string };
-    };
+export type BeginClaimResponse = Json<paths["/v1/tenants/{id}/claim/begin"]["post"]["responses"][200]>;
+export type VerifyClaimCodeResponse = Json<
+  paths["/v1/tenants/{id}/claim/verify-code"]["post"]["responses"][200]
+>;
+export type CompleteClaimInput = Json<paths["/v1/tenants/{id}/claim/complete"]["post"]["requestBody"]>;
+export type ClaimResponse = Json<paths["/v1/tenants/{id}/claim/complete"]["post"]["responses"][200]>;
+export type AddressEntry = Json<paths["/v1/addresses"]["post"]["responses"][201]>;
+export type CreatePayinInput = Json<paths["/v1/payins"]["post"]["requestBody"]>;
+export type PayinResponse = Json<paths["/v1/payins"]["post"]["responses"][201]>;
+export type PayinClassification = PayinResponse["classification"];
+export type CreatePayoutInput = Json<paths["/v1/payouts"]["post"]["requestBody"]>;
+export type PayoutTransferInput = CreatePayoutInput["transfers"][number];
+export type PayoutResponse = Json<paths["/v1/payouts"]["post"]["responses"][201]>;
+export type CreatePayoutResponse = PayoutResponse;
+export type SigningRequest = PayoutResponse["signingRequests"][number];
+export type SignedActivity = Json<paths["/v1/payouts/{id}/signatures"]["post"]["requestBody"]>[number];
+export type TransferRow = PayoutResponse["transfers"][number];
+export type TransferStatus = TransferRow["status"];
+export type PayoutSigningError = NonNullable<PayoutResponse["signingError"]>;
+export type RequestSwapQuoteInput = Json<paths["/v1/swaps/quotes"]["post"]["requestBody"]>;
+export type SwapQuoteResponse = Json<paths["/v1/swaps/quotes"]["post"]["responses"][201]>;
+export type AcceptSwapQuoteInput = Json<paths["/v1/swaps"]["post"]["requestBody"]>;
+export type SignedSwapQuoteInput = AcceptSwapQuoteInput & { signature: string };
+export type AcceptSwapQuoteResponse = Json<paths["/v1/swaps"]["post"]["responses"][201]>;
+export type SwapResponse = Json<paths["/v1/swaps/{id}"]["get"]["responses"][200]>;
+type SwapPage = Json<paths["/v1/swaps"]["get"]["responses"][200]>;
+export type Paginated<T> = Omit<SwapPage, "items"> & { items: T[] };
+export type ListOptions = NonNullable<paths["/v1/swaps"]["get"]["parameters"]["query"]>;
+export type WebhookEvent = Json<paths["/v1/webhooks/deliveries/{id}"]["get"]["responses"][200]>["payload"];
+export type WebhookTransfer = Extract<WebhookEvent, { event: "payout.created" }>["data"]["transfers"][number];

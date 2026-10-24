@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { WEBHOOK_EVENT_TYPES } from "./api-values.ts";
 import type { WebhookEvent } from "./types.ts";
 
 export const SIGNATURE_HEADER = "x-hedles-signature";
@@ -7,20 +8,7 @@ export const IDEMPOTENCY_HEADER = "x-hedles-idempotency-key";
 
 export const DEFAULT_TOLERANCE_SECONDS = 300;
 
-export const WEBHOOK_EVENT_TYPES = [
-  "payin.pending",
-  "payin.confirmed",
-  "payin.expired",
-  "payout.created",
-  "payout.broadcast",
-  "payout.settled",
-  "payout.failed",
-  "swap.accepted",
-  "swap.executing",
-  "swap.executed",
-  "swap.expired",
-  "swap.failed",
-] as const;
+export { WEBHOOK_EVENT_TYPES } from "./api-values.ts";
 
 export class WebhookVerificationError extends Error {}
 

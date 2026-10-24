@@ -2,26 +2,25 @@ import { describe, expect, test } from "bun:test";
 import { completePayoutSigning } from "../src/payout.ts";
 import type { PayoutResponse, SignedActivity, SigningRequest, Stamper } from "../src/types.ts";
 
+const firstBody = '{ "timestampMs": 1760000000000, "payload": "0x01" }';
+
 function signingRequest(id: string, body: string): SigningRequest {
-  return { id, body, token: `token-${id}` };
+  return { id, body, method: "stampedRequest", signer: "from", transaction: "0x0100" };
 }
 
 function payout(signingRequests: SigningRequest[]): PayoutResponse {
   const complete = signingRequests.length === 0;
   return {
     id: "payout-1",
-    chain: "chain",
+    chain: "base",
     asset: "asset",
     fromAddress: "from",
     toAddress: "to",
     amount: "1000",
     feeTotal: null,
-    kind: "payout",
+    executionMode: "atomic",
     status: complete ? "broadcast" : "pending",
-    unsignedTx: complete ? null : "unsigned",
-    signedTx: null,
     txHash: complete ? "0xhash" : null,
-    nonce: null,
     confirmations: 0,
     requiredConfirmations: 1,
     reference: null,
@@ -44,7 +43,7 @@ const stamper: Stamper = {
 };
 
 describe("completePayoutSigning", () => {
-  test("submits the initial request by its signing-request id, then by the payout id", async () => {
+  test("uses the payout id for authorization and transaction rounds", async () => {
     const submissions: Array<{ target: string; requests: SignedActivity[] }> = [];
     const api = {
       async submitPayoutSignatures(target: string, requests: SignedActivity[]) {
@@ -54,22 +53,18 @@ describe("completePayoutSigning", () => {
       },
     };
 
-    const result = await completePayoutSigning(
-      api,
-      { signingRequests: [signingRequest("round-1", "body-1")] },
-      stamper,
-    );
+    const result = await completePayoutSigning(api, payout([signingRequest("round-1", firstBody)]), stamper);
 
     expect(result.signingRequests).toEqual([]);
     expect(submissions).toEqual([
       {
-        target: "round-1",
+        target: "payout-1",
         requests: [
           {
             id: "round-1",
-            body: "body-1",
-            token: "token-round-1",
-            stamp: { name: "X-Stamp", value: "signed:body-1" },
+            body: firstBody,
+            method: "stampedRequest",
+            stamp: { name: "X-Stamp", value: `signed:${firstBody}` },
           },
         ],
       },
@@ -79,7 +74,7 @@ describe("completePayoutSigning", () => {
           {
             id: "round-2",
             body: "body-2",
-            token: "token-round-2",
+            method: "stampedRequest",
             stamp: { name: "X-Stamp", value: "signed:body-2" },
           },
         ],
@@ -113,7 +108,7 @@ describe("completePayoutSigning", () => {
     };
 
     expect(
-      completePayoutSigning(api, { signingRequests: [signingRequest("round-0", "body-0")] }, stamper),
+      completePayoutSigning(api, payout([signingRequest("round-0", "body-0")]), stamper),
     ).rejects.toThrow("still requires signatures");
   });
 });
