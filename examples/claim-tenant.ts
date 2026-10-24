@@ -65,15 +65,20 @@ await runExample(async () => {
     },
   });
 
-  const session = await obtainSession(api, createStamper(credentials));
-  printJson({
+  const result = {
     claim,
     completed,
     credentials: generated ? credentials : { publicKey: credentials.publicKey, source: "environment" },
-    session,
-  });
-
-  if (generated) {
-    console.error("A new private key was printed once. Store it securely before closing this terminal.");
+  };
+  try {
+    const session = await obtainSession(api, createStamper(credentials));
+    printJson({ ...result, session });
+  } catch (error) {
+    if (generated) printJson(result);
+    throw error;
+  } finally {
+    if (generated) {
+      console.error("A new private key was printed once. Store it securely before closing this terminal.");
+    }
   }
 });
