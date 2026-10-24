@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { bitgo } from "@bitgo/utxo-lib";
-import { generateKeyPair, verifyStamp } from "../src/stamper.ts";
+import { createStamper, decodeStamp, generateKeyPair, verifyStamp } from "../src/stamper.ts";
 import { fundingFixture } from "./_helpers/funding-psbt.ts";
 
 const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -134,6 +134,7 @@ beforeAll(() => {
             typeof proof.timestampMs !== "number" ||
             !Number.isSafeInteger(proof.timestampMs) ||
             Math.abs(Date.now() - proof.timestampMs) > 300_000 ||
+            decodeStamp(signedRequest.stampHeaderValue).publicKey !== credentials.publicKey ||
             !(await verifyStamp(signedRequest.stampHeaderValue, signedRequest.body))
           )
             return Response.json({ code: "stamp_verification_failed" }, { status: 401 });
@@ -272,6 +273,19 @@ async function run(script: string, args: string[], environment: Record<string, s
 }
 
 describe("Bun example commands", () => {
+  test("session fixture rejects a valid stamp from an unregistered key", async () => {
+    const body = JSON.stringify({ organizationId: "org-test", timestampMs: Date.now() });
+    const stamp = await createStamper(await generateKeyPair()).stamp(body);
+    expect(await verifyStamp(stamp.stampHeaderValue, body)).toBe(true);
+    const response = await fetch(`http://127.0.0.1:${server.port}/v1/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signedRequest: { body, ...stamp } }),
+    });
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ code: "stamp_verification_failed" });
+  });
+
   test("run independently through their complete HTTP flows", async () => {
     const sessionResult = (await run(
       "session",
