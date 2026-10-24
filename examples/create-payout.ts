@@ -1,4 +1,5 @@
-import { authenticatedOptions, parseCommand, uint32 } from "../src/cli.ts";
+import { CHAINS } from "../src/api-values.ts";
+import { authenticatedOptions, choice, parseCommand, uint32 } from "../src/cli.ts";
 import { apiKeyCredentials } from "../src/config.ts";
 import { completePayoutSigning } from "../src/payout.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
@@ -66,14 +67,14 @@ await runExample(async () => {
 
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const created = await api.createPayout({
-    chain: options.chain,
+    chain: choice(options.chain, "--chain", CHAINS),
     asset: options.asset,
     fromAddress: options.from,
     transfers,
     ...(options.reference ? { reference: options.reference } : {}),
   });
 
-  if ("id" in created && created.signingRequests.length === 0) {
+  if (created.signingRequests.length === 0) {
     printJson(created);
     return;
   }

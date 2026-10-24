@@ -11,6 +11,8 @@ let server: ReturnType<typeof Bun.serve>;
 const quoteId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const fixture = fundingFixture("dogecoin", 3);
 let walletCalls = 0;
+let walletBody: unknown;
+let payinBody: unknown;
 let signatureSubmissions: unknown[] = [];
 let payoutBodies: unknown[] = [];
 let acceptBodies: unknown[] = [];
@@ -28,18 +30,15 @@ function session() {
 function payout(complete: boolean) {
   return {
     id: "payout-cli",
-    chain: "chain",
+    chain: "base",
     asset: "asset",
     fromAddress: "from",
     toAddress: "to",
     amount: "1000",
     feeTotal: null,
-    kind: "payout",
+    executionMode: "atomic",
     status: complete ? "broadcast" : "pending",
-    unsignedTx: complete ? null : "unsigned",
-    signedTx: null,
     txHash: complete ? "0xhash" : null,
-    nonce: null,
     confirmations: 0,
     requiredConfirmations: 1,
     reference: null,
@@ -49,8 +48,6 @@ function payout(complete: boolean) {
         id: "transfer-cli",
         position: 0,
         kind: "recipient",
-        asset: "asset",
-        fromAddress: "from",
         toAddress: "to",
         amount: "1000",
         status: "pending",
@@ -81,6 +78,7 @@ function quote() {
     venueFundingAddress: fixture.venueAddress,
     fundingMemo: null,
     fundingTransaction: fixture.unsigned,
+    signingRequests: [],
     token: "quote-token",
     expiresAt: new Date(Date.now() + 600_000).toISOString(),
     createdAt: new Date().toISOString(),
@@ -153,37 +151,36 @@ beforeAll(() => {
         POST: () => Response.json({ claimTicket: "hp_claim_test", email: "owner@example.com" }),
       },
       [`/v1/tenants/${tenantId}/claim/complete`]: {
-        POST: () => Response.json({ tenantId, rootUserId: "root-user", mode: "cosigned" }),
+        POST: () => Response.json({ tenantId, mode: "cosigned" }),
       },
       "/v1/addresses": {
-        POST() {
+        async POST(request) {
+          walletBody = await request.json();
           walletCalls += 1;
           return Response.json({
             id: "address-cli",
-            tenant_id: tenantId,
-            chainType: "evm",
+            tenantId,
             address: "0x1234",
-            address_kind: "turnkey_wallet_account",
-            address_role: "payin",
+            addressRole: "payin",
             status: "available",
             isSignable: false,
-            derivation_path: null,
-            created_at: "2026-07-30T00:00:00.000Z",
-            updated_at: "2026-07-30T00:00:00.000Z",
+            createdAt: "2026-07-30T00:00:00.000Z",
+            updatedAt: "2026-07-30T00:00:00.000Z",
             deletedAt: null,
             whitelistedAt: null,
-            chains: [{ chainKey: "eip155:84532" }],
+            chains: [{ chain: "base" }],
           });
         },
       },
       "/v1/payins": {
-        POST: () =>
-          Response.json({
+        async POST(request) {
+          payinBody = await request.json();
+          return Response.json({
             id: "payin-cli",
             status: "awaiting_payment",
             reference: null,
-            chainKey: "chain",
-            assetKey: "asset",
+            chain: "base",
+            asset: "asset",
             address: "deposit-address",
             addressId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
             fromAddress: null,
@@ -195,23 +192,27 @@ beforeAll(() => {
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
-          }),
+          });
+        },
       },
       "/v1/payouts": {
         async POST(request) {
           payoutBodies.push(await request.json());
           return Response.json({
+            ...payout(false),
             signingRequests: [
               {
                 id: signingRequestId,
                 body: "payout-signing-body",
-                token: "binding-token",
+                method: "stampedRequest",
+                signer: "from",
+                transaction: "0x0100",
               },
             ],
           });
         },
       },
-      [`/v1/payouts/${signingRequestId}/signatures`]: {
+      "/v1/payouts/payout-cli/signatures": {
         async POST(request) {
           signatureSubmissions = (await request.json()) as unknown[];
           return Response.json(payout(true));
@@ -224,7 +225,8 @@ beforeAll(() => {
         GET: () => Response.json(quote()),
       },
       "/v1/swaps": {
-        GET: () => Response.json({ items: [swap()], total: 1, limit: 20, offset: 0 }),
+        GET: () =>
+          Response.json({ items: [swap()], total: 1, limit: 20, page: 1, totalPages: 1, hasMore: false }),
         async POST(request) {
           acceptBodies.push(await request.json());
           return Response.json(swap(), { status: 201 });
@@ -318,6 +320,7 @@ describe("Bun example commands", () => {
     )) as { id: string };
     expect(walletResult.id).toBe("address-cli");
     expect(walletCalls).toBe(1);
+    expect(walletBody).toEqual({ chain: "base" });
 
     const payinResult = (await run(
       "payin",
@@ -325,7 +328,7 @@ describe("Bun example commands", () => {
         "--api-url",
         `http://127.0.0.1:${server.port}`,
         "--chain",
-        "chain",
+        "base",
         "--asset",
         "asset",
         "--amount",
@@ -335,6 +338,7 @@ describe("Bun example commands", () => {
     )) as { id: string; classification: string };
     expect(payinResult.id).toBe("payin-cli");
     expect(payinResult.classification).toBe("matched");
+    expect(payinBody).toEqual({ chain: "base", asset: "asset", amount: "1000", expiresIn: 3600 });
 
     const payoutResult = (await run(
       "payout",
@@ -342,7 +346,7 @@ describe("Bun example commands", () => {
         "--api-url",
         `http://127.0.0.1:${server.port}`,
         "--chain",
-        "chain",
+        "base",
         "--asset",
         "asset",
         "--amount",
@@ -357,10 +361,11 @@ describe("Bun example commands", () => {
     expect(payoutResult.id).toBe("payout-cli");
     expect(payoutResult.signingRequests).toEqual([]);
     expect(signatureSubmissions).toHaveLength(1);
+    expect(Object.keys(signatureSubmissions[0] as object).sort()).toEqual(["body", "id", "method", "stamp"]);
     expect(signatureSubmissions[0]).toMatchObject({
       id: signingRequestId,
       body: "payout-signing-body",
-      token: "binding-token",
+      method: "stampedRequest",
     });
   });
 
@@ -372,7 +377,7 @@ describe("Bun example commands", () => {
         "--api-url",
         `http://127.0.0.1:${server.port}`,
         "--chain",
-        "chain",
+        "base",
         "--asset",
         "asset",
         "--from",
@@ -393,7 +398,7 @@ describe("Bun example commands", () => {
     expect(result.id).toBe("payout-cli");
     expect(payoutBodies).toEqual([
       {
-        chain: "chain",
+        chain: "base",
         asset: "asset",
         fromAddress: "from",
         transfers: [

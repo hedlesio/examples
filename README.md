@@ -90,19 +90,19 @@ multiple organizations.
 
 ```sh
 bun run wallet
-bun run wallet --chain-type xrp
+bun run wallet --chain xrpl
 ```
 
-Defaults to `evm`. Supported types: `evm`, `solana`, `bitcoin`, `bitcoin-testnet`, `litecoin`,
-`litecoin-testnet`, `dogecoin`, `dogecoin-testnet`, `bitcoin-cash`, `bitcoin-cash-testnet`, `zcash`,
-`zcash-testnet`, `xrp`, and `tron`.
+Defaults to `base`. Use canonical chain names: `ethereum`, `polygon`, `base`, `solana`, `bitcoin`,
+`litecoin`, `bitcoin-cash`, `dogecoin`, `zcash`, `xrpl`, and `tron`. The gateway selects the concrete
+network for its environment; internal network keys and wallet family names are not API chain values.
 
 ### Create a pay-in
 
 ```sh
 bun run payin \
-  --chain your-chain-key \
-  --asset your-asset-key \
+  --chain base \
+  --asset USDC \
   --amount 1000000 \
   --reference invoice-123
 ```
@@ -115,8 +115,8 @@ active payment request.
 
 ```sh
 bun run payout \
-  --chain your-chain-key \
-  --asset your-asset-key \
+  --chain base \
+  --asset USDC \
   --from source-address \
   --to recipient-address \
   --amount 1000000 \
@@ -129,9 +129,10 @@ for a multisend from an EVM or Zcash omnibus; `all` sweeps the balance for a sin
 A payout is one single-asset transaction: `POST /v1/payouts` takes a top-level `chain`, `asset`, and
 `fromAddress` plus one or more `transfers` (`toAddress`, `amount`, optional `destinationTag`). It never
 accepts signatures. When client signing is required, the response carries opaque `signingRequests`
-(`id`, `body`, `token`); stamp each exact `body` and submit the stamped array as the top-level JSON body
-of `POST /v1/payouts/:id/signatures` — using the signing-request id before the payout exists, and the
-payout id returned by that first submission for every later round. Repeat until `signingRequests` is
+(`id`, `signer`, `transaction`, `method`, `body`); review `transaction`, stamp each exact `body`, and
+submit `{ id, method, body, stamp: { name, value } }` items as the top-level array to
+`POST /v1/payouts/:id/signatures`. Use the payout id returned by creation for every round, including
+first-use EVM authorization followed by transaction signing. Payout signing does not use a token. Repeat until `signingRequests` is
 empty. The command drives this loop for you. Recipient and fee movements come back as flat `transfers`
 rows; a settled payout means the transaction settled, so inspect each transfer's own status.
 
@@ -171,9 +172,9 @@ work afterwards.
 
 Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payout.created`, `payout.broadcast`,
 `payout.settled`, `payout.failed`, `swap.accepted`, `swap.executing`, `swap.executed`, `swap.expired`,
-`swap.failed`. Payloads are a discriminated union on `event` (see `src/types.ts`); payout payloads carry
-the per-movement `transfers` array, so check each transfer's status rather than assuming every movement
-settled.
+`swap.failed`, `omnibus.low_gas`. Payloads are a discriminated union on `event` (see `src/types.ts`);
+payout payloads carry the per-movement `transfers` array, so check each transfer's status rather than
+assuming every movement settled.
 
 ### Swap between assets
 
@@ -182,7 +183,7 @@ A swap is a request-for-quote flow that never takes custody of your keys. Reques
 ```sh
 bun run swap-quote \
   --sell-chain bitcoin --sell-asset BTC \
-  --buy-chain eip155:1 --buy-asset USDT \
+  --buy-chain ethereum --buy-asset USDT \
   --amount 100000 --side sell \
   --sender-address bc1qYourSendingAddress \
   --recipient-address 0xYourReceivingAddress
@@ -244,7 +245,19 @@ quote cannot be accepted — request a fresh one rather than re-signing stale by
 bun run check
 ```
 
-Runs TypeScript, Biome, and Bun tests.
+Runs TypeScript, Biome, and Bun tests. API request/response types for every published endpoint are
+generated in `src/api-schema.ts`; the client aliases those contracts in `src/types.ts`. Runtime chain
+and webhook event choices are generated from the same schema. Regenerate from a gateway OpenAPI
+export after server contract changes:
+
+```sh
+bun run generate:api /path/to/openapi.json
+bun run check
+```
+
+This snapshot follows the Hyperpay API contract audit based on main `87a38f8c` (2026-10-24).
+The generator pins its own TypeScript 5 printer because the application uses the TypeScript 7
+compiler. The generator dependencies are only installed when regenerating, not at runtime.
 
 ## Security
 

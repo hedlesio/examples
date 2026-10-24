@@ -1,4 +1,5 @@
-import { authenticatedOptions, parseCommand, positiveInteger } from "../src/cli.ts";
+import { CHAINS } from "../src/api-values.ts";
+import { authenticatedOptions, choice, parseCommand, positiveInteger } from "../src/cli.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 
 await runExample(async () => {
@@ -38,8 +39,8 @@ await runExample(async () => {
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const expiresIn = positiveInteger(options.expiresIn, "--expires-in");
   const payin = await api.createPayin({
-    chainKey: options.chain,
-    assetKey: options.asset,
+    chain: choice(options.chain, "--chain", CHAINS),
+    asset: options.asset,
     amount: options.amount,
     ...(options.reference ? { reference: options.reference } : {}),
     expiresIn,

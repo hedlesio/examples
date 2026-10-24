@@ -16,15 +16,10 @@ export async function completePayoutSigning(
   let response = created;
 
   for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
-    if ("id" in response && response.signingRequests.length === 0) return response;
-
-    // Before the payout exists the signing-request id addresses the submission;
-    // every later round uses the database-generated payout id.
-    const target = "id" in response ? response.id : response.signingRequests[0]?.id;
-    if (!target) throw new Error("Payout response carries neither a payout id nor a signing request");
+    if (response.signingRequests.length === 0) return response;
 
     const stamped = await stampActivities(response.signingRequests, stamper);
-    response = await api.submitPayoutSignatures(target, stamped);
+    response = await api.submitPayoutSignatures(response.id, stamped);
   }
 
   throw new Error(`Payout still requires signatures after ${MAX_SIGNING_ROUNDS} signing rounds`);
