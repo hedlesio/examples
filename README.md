@@ -30,10 +30,34 @@ Commands default to `https://api-dev.hedles.io`. Production operations are real:
 
 Authenticated commands use `HEDLES_SESSION_TOKEN` when set; otherwise they create a session with the API
 key pair. Signing needs nothing beyond WebCrypto: a stamp is an ECDSA P-256 signature over the exact bytes
-of a body, sent in the `X-Stamp` header as base64url JSON `{ publicKey, scheme, signature }` with the
+of a body, encoded as base64url JSON `{ publicKey, scheme, signature }` with the
 DER-encoded signature in hex. `src/stamper.ts` is the whole implementation, including key generation and a
-verifier you can port to another language. The login body carries a `timestampMs`; the API rejects stale
-ones, so a captured login stamp is worth minutes, not forever. Cosigned payouts always need the key pair to stamp their signing requests.
+verifier you can port to another language. These examples fetch `/v1/sessions/bootstrap` before each
+login and stamp its exact `body` string without parsing or rebuilding it. Bootstrap uses the gateway
+clock and returns `expiresIn: 300` for the login-proof freshness window. Login sends the stamp as
+`stampHeaderName: "X-Stamp"` and `stampHeaderValue` inside `signedRequest`, alongside the exact body;
+it does not add `X-Stamp` as an HTTP header on the gateway request.
+
+The gateway accepts a signed JSON body containing a nonempty `organizationId` and an integer
+`timestampMs` in Unix milliseconds within five minutes of its clock, including the future bound.
+Use bootstrap's returned `body` as the recommended signing input; stamp and submit it unchanged
+instead of constructing provider-specific fields locally. Existing valid locally constructed proofs
+remain compatible. The gateway rejects timestamp-less, string-valued, fractional, unsafe, stale,
+or excessively future-dated proofs. Additional opaque fields remain compatible.
+
+Freshness is stateless. A valid proof may be reused within the accepted clock window, and every accepted
+login may issue a separate one-hour session after provider verification and tenant/user checks. Because
+the clock window is symmetric, a maximally future-dated proof can span approximately ten minutes of total
+acceptance. The proof window and session lifetime are independent: proof expiry does not invalidate an
+already-issued session. Fetch and stamp a fresh bootstrap body after expiry; bootstrap and login
+responses are `no-store`. Cosigned payouts always need the key pair to stamp their signing requests.
+
+These examples use the timestamped bootstrap response from
+[hyperpay PR #910](https://github.com/hedlesio/hyperpay/pull/910). Deploy a gateway returning that response
+before using this examples revision; no database migration is required. Coordinate timestamp-capable
+gateway, dashboard, and integrator updates, and refresh already-open dashboard bundles after the new
+Pages build is promoted. Clients that already construct fresh `{organizationId, timestampMs}` bodies
+remain supported.
 
 ## Commands
 
@@ -58,8 +82,9 @@ immediately.
 bun run session
 ```
 
-Signs an identity proof and returns a one-hour Hedles token. Organization bootstrap is automatic;
-`--organization-id` overrides it.
+Stamps a fresh server-clock login body and returns a one-hour Hedles token. Bootstrap runs on every
+login, including when `--organization-id` selects a known organization for a credential registered in
+multiple organizations.
 
 ### Create a wallet address
 

@@ -11,10 +11,10 @@ export async function obtainSession(
   stamper: Stamper,
   organizationId?: string,
 ): Promise<SessionResponse> {
-  const resolvedOrganizationId = organizationId ?? (await api.bootstrapSession()).organizationId;
-  // The timestamp makes a captured login stamp worth minutes, not forever: the
-  // API rejects a body whose timestampMs is outside its tolerance.
-  const body = JSON.stringify({ organizationId: resolvedOrganizationId, timestampMs: Date.now().toString() });
+  const { body } = await api.bootstrapSession(organizationId);
+  if (typeof body !== "string" || !body) {
+    throw new Error("Login bootstrap did not return a signing body; use a bootstrap-enabled gateway.");
+  }
   return api.createSession(await stampIdentity(body, stamper));
 }
 
