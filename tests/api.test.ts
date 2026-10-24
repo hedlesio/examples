@@ -29,8 +29,8 @@ beforeAll(() => {
             id: "payin-1",
             status: "awaiting_payment",
             reference: null,
-            chainKey: "chain",
-            assetKey: "asset",
+            chain: "base",
+            asset: "USDC",
             address: "deposit-address",
             addressId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
             fromAddress: null,
@@ -57,9 +57,9 @@ beforeAll(() => {
           return Response.json({
             id: "11111111-1111-4111-8111-111111111111",
             status: "quoted",
-            sellChain: "sell-chain",
+            sellChain: "bitcoin",
             sellAsset: "SELL",
-            buyChain: "buy-chain",
+            buyChain: "ethereum",
             buyAsset: "BUY",
             sellAmount: "1000",
             quotedBuyAmount: "990",
@@ -68,6 +68,7 @@ beforeAll(() => {
             venueFundingAddress: "venue-address",
             fundingMemo: null,
             fundingTransaction: "unsigned-funding-psbt",
+            signingRequests: [],
             token: "quote-token",
             expiresAt: "2026-07-30T01:00:00.000Z",
             createdAt: "2026-07-30T00:00:00.000Z",
@@ -81,9 +82,9 @@ beforeAll(() => {
           return Response.json({
             id: "11111111-1111-4111-8111-111111111111",
             status: "pending",
-            sellChain: "sell-chain",
+            sellChain: "bitcoin",
             sellAsset: "SELL",
-            buyChain: "buy-chain",
+            buyChain: "ethereum",
             buyAsset: "BUY",
             sellAmount: "1000",
             quotedBuyAmount: "990",
@@ -121,8 +122,8 @@ describe("HedlesApi", () => {
   });
   test("sends bearer authentication and JSON bodies", async () => {
     const result = await api.createPayin({
-      chainKey: "chain",
-      assetKey: "asset",
+      chain: "base",
+      asset: "USDC",
       amount: "1000",
     });
 
@@ -130,8 +131,8 @@ describe("HedlesApi", () => {
     expect(result.classification).toBe("matched");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
-      chainKey: "chain",
-      assetKey: "asset",
+      chain: "base",
+      asset: "USDC",
       amount: "1000",
     });
   });
@@ -142,9 +143,9 @@ describe("HedlesApi", () => {
 
   test("requests a swap quote with the RFQ inputs", async () => {
     const quote = await api.requestSwapQuote({
-      sellChain: "sell-chain",
+      sellChain: "bitcoin",
       sellAsset: "SELL",
-      buyChain: "buy-chain",
+      buyChain: "ethereum",
       buyAsset: "BUY",
       amount: "1000",
       side: "sell",
@@ -157,9 +158,9 @@ describe("HedlesApi", () => {
     expect(quote.token).toBe("quote-token");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
-      sellChain: "sell-chain",
+      sellChain: "bitcoin",
       sellAsset: "SELL",
-      buyChain: "buy-chain",
+      buyChain: "ethereum",
       buyAsset: "BUY",
       amount: "1000",
       side: "sell",
@@ -183,4 +184,49 @@ describe("HedlesApi", () => {
       signature: "signed-funding-psbt",
     });
   });
+});
+
+test("serializes typed pagination and scope options instead of offset", async () => {
+  let received = "";
+  const listServer = Bun.serve({
+    port: 0,
+    fetch(request) {
+      received = new URL(request.url).search;
+      return Response.json({ items: [], page: 2, limit: 5, total: 0, totalPages: 0, hasMore: false });
+    },
+  });
+  try {
+    const result = await new HedlesApi(`http://127.0.0.1:${listServer.port}`).listSwaps({
+      page: 2,
+      limit: 5,
+      includeDescendants: false,
+    });
+    expect(result.page).toBe(2);
+    expect(new URLSearchParams(received).get("includeDescendants")).toBe("false");
+    expect(new URLSearchParams(received).get("page")).toBe("2");
+    expect(new URLSearchParams(received).has("offset")).toBe(false);
+  } finally {
+    listServer.stop(true);
+  }
+});
+
+test("prepares swap signing without claiming an executed swap response", async () => {
+  let received: unknown;
+  const signingServer = Bun.serve({
+    port: 0,
+    async fetch(request) {
+      received = await request.json();
+      return Response.json({ id: "quote-id", signingRequests: [] });
+    },
+  });
+  try {
+    const result = await new HedlesApi(`http://127.0.0.1:${signingServer.port}`).acceptSwapQuote({
+      quoteId: "quote-id",
+      token: "quote-token",
+    });
+    expect(received).toEqual({ quoteId: "quote-id", token: "quote-token" });
+    expect(result).toEqual({ id: "quote-id", signingRequests: [] });
+  } finally {
+    signingServer.stop(true);
+  }
 });

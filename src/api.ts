@@ -1,10 +1,15 @@
 import type {
   AcceptSwapQuoteInput,
+  AcceptSwapQuoteResponse,
   AddressEntry,
+  BeginClaimResponse,
+  Chain,
   ClaimResponse,
+  CompleteClaimInput,
   CreatePayinInput,
   CreatePayoutInput,
   CreatePayoutResponse,
+  ListOptions,
   Paginated,
   PayinResponse,
   PayoutResponse,
@@ -13,8 +18,10 @@ import type {
   SessionResponse,
   SignedActivity,
   SignedIdentityRequest,
+  SignedSwapQuoteInput,
   SwapQuoteResponse,
   SwapResponse,
+  VerifyClaimCodeResponse,
 } from "./types.ts";
 
 interface ApiErrorBody {
@@ -34,10 +41,7 @@ export class HedlesApiError extends Error {
   }
 }
 
-export interface ListOptions {
-  limit?: number;
-  offset?: number;
-}
+export type { ListOptions } from "./types.ts";
 
 export class HedlesApi {
   readonly baseUrl: string;
@@ -65,7 +69,7 @@ export class HedlesApi {
     });
   }
 
-  beginClaim(tenantId: string): Promise<{ tenantId: string; tenantName: string; tenantKind: string }> {
+  beginClaim(tenantId: string): Promise<BeginClaimResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/begin`, {
       method: "POST",
     });
@@ -77,36 +81,24 @@ export class HedlesApi {
     });
   }
 
-  verifyClaimCode(tenantId: string, code: string): Promise<{ claimTicket: string; email: string }> {
+  verifyClaimCode(tenantId: string, code: string): Promise<VerifyClaimCodeResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/verify-code`, {
       method: "POST",
       body: JSON.stringify({ code }),
     });
   }
 
-  completeClaim(
-    tenantId: string,
-    input: {
-      claimTicket: string;
-      userName: string;
-      mode: "custodial" | "cosigned";
-      credential: {
-        type: "apiKey";
-        apiKeyPublicKey: string;
-        curveType: "API_KEY_CURVE_P256";
-      };
-    },
-  ): Promise<ClaimResponse> {
+  completeClaim(tenantId: string, input: CompleteClaimInput): Promise<ClaimResponse> {
     return this.request(`/v1/tenants/${encodeURIComponent(tenantId)}/claim/complete`, {
       method: "POST",
       body: JSON.stringify(input),
     });
   }
 
-  createAddress(chainType: string): Promise<AddressEntry> {
+  createAddress(chain: Chain): Promise<AddressEntry> {
     return this.request("/v1/addresses", {
       method: "POST",
-      body: JSON.stringify({ chainType }),
+      body: JSON.stringify({ chain }),
     });
   }
 
@@ -128,8 +120,6 @@ export class HedlesApi {
     return this.request(`/v1/payouts/${encodeURIComponent(payoutId)}`);
   }
 
-  // The stamped signing requests are the top-level JSON array. Before the
-  // payout exists, `id` is the signing-request id; afterwards it is the payout id.
   submitPayoutSignatures(id: string, requests: SignedActivity[]): Promise<PayoutResponse> {
     return this.request(`/v1/payouts/${encodeURIComponent(id)}/signatures`, {
       method: "POST",
@@ -148,7 +138,9 @@ export class HedlesApi {
     return this.request(`/v1/swaps/quotes/${encodeURIComponent(quoteId)}`);
   }
 
-  acceptSwapQuote(input: AcceptSwapQuoteInput): Promise<SwapResponse> {
+  acceptSwapQuote(input: SignedSwapQuoteInput): Promise<SwapResponse>;
+  acceptSwapQuote(input: AcceptSwapQuoteInput): Promise<AcceptSwapQuoteResponse>;
+  acceptSwapQuote(input: AcceptSwapQuoteInput): Promise<AcceptSwapQuoteResponse> {
     return this.request("/v1/swaps", {
       method: "POST",
       body: JSON.stringify(input),
@@ -161,8 +153,9 @@ export class HedlesApi {
 
   listSwaps(options: ListOptions = {}): Promise<Paginated<SwapResponse>> {
     const query = new URLSearchParams();
-    if (options.limit !== undefined) query.set("limit", String(options.limit));
-    if (options.offset !== undefined) query.set("offset", String(options.offset));
+    for (const [name, value] of Object.entries(options)) {
+      if (value !== undefined) query.set(name, String(value));
+    }
     const suffix = query.size === 0 ? "" : `?${query}`;
     return this.request(`/v1/swaps${suffix}`);
   }

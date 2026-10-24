@@ -21,7 +21,7 @@ export async function stampActivities(
       return {
         id: request.id,
         body: request.body,
-        token: request.token,
+        method: request.method,
         stamp: {
           name: stamp.stampHeaderName,
           value: stamp.stampHeaderValue,

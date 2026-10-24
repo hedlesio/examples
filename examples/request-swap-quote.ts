@@ -1,3 +1,4 @@
+import { CHAINS } from "../src/api-values.ts";
 import { authenticatedOptions, choice, parseCommand } from "../src/cli.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 
@@ -53,9 +54,9 @@ await runExample(async () => {
 
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const quote = await api.requestSwapQuote({
-    sellChain: options.sellChain,
+    sellChain: choice(options.sellChain, "--sell-chain", CHAINS),
     sellAsset: options.sellAsset,
-    buyChain: options.buyChain,
+    buyChain: choice(options.buyChain, "--buy-chain", CHAINS),
     buyAsset: options.buyAsset,
     amount: options.amount,
     side: choice(options.side, "--side", ["sell", "buy"]),

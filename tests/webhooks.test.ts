@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { WebhookEvent } from "../src/types.ts";
 import {
   parseSignatureHeader,
   signPayload,
@@ -16,7 +17,8 @@ const BODY = JSON.stringify({
     txHash: "0xabc",
     blockNumber: 21_000_000,
     confirmations: 12,
-    chain: "eip155:11155111",
+    chain: "ethereum",
+    asset: "ETH",
     fromAddress: "0xdef",
   },
 });
@@ -131,4 +133,15 @@ describe("webhook request handling", () => {
       verifyRequest(deliveryRequest({ body: "not json" }), SECRET, Number.MAX_SAFE_INTEGER),
     ).rejects.toThrow("body is not valid JSON");
   });
+});
+
+test("accepts signed omnibus low-gas events", async () => {
+  const event = {
+    event: "omnibus.low_gas",
+    data: { chain: "ethereum", address: `0x${"ab".repeat(20)}`, balance: "1", threshold: "100" },
+  } satisfies WebhookEvent;
+  const rawBody = JSON.stringify(event);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const request = deliveryRequest({ body: rawBody, signature: header(rawBody, timestamp) });
+  expect((await verifyRequest(request, SECRET)).event).toEqual(event);
 });
