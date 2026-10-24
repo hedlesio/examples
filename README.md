@@ -172,9 +172,9 @@ work afterwards.
 
 Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payout.created`, `payout.broadcast`,
 `payout.settled`, `payout.failed`, `swap.accepted`, `swap.executing`, `swap.executed`, `swap.expired`,
-`swap.failed`. Payloads are a discriminated union on `event` (see `src/types.ts`); payout payloads carry
-the per-movement `transfers` array, so check each transfer's status rather than assuming every movement
-settled.
+`swap.failed`, `omnibus.low_gas`. Payloads are a discriminated union on `event` (see `src/types.ts`);
+payout payloads carry the per-movement `transfers` array, so check each transfer's status rather than
+assuming every movement settled.
 
 ### Swap between assets
 
