@@ -74,7 +74,9 @@ Defaults: owner name to the verified email and custody mode to `cosigned`. Use
 `--custody-mode custodial` for Hedles-authorized wallet operations.
 
 If no API keys are configured, the command generates a pair and prints the private key once. Store it
-immediately.
+immediately. If the claim completes but login fails, the command still prints generated credentials to
+stdout and exits with an error. Save that output before retrying login with the same key pair. Keys
+supplied through the environment are never printed on this failure path.
 
 ### Create a session
 

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { bitgo } from "@bitgo/utxo-lib";
 import { createStamper, decodeStamp, generateKeyPair, verifyStamp } from "../src/stamper.ts";
+import { runCommand } from "./_helpers/cli.ts";
 import { fundingFixture } from "./_helpers/funding-psbt.ts";
 
 const tenantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -259,17 +260,7 @@ function testEnvironment(overrides: Record<string, string> = {}): Record<string,
 }
 
 async function run(script: string, args: string[], environment: Record<string, string>): Promise<unknown> {
-  const child = Bun.spawn(["bun", "run", script, ...args], {
-    cwd: `${import.meta.dir}/..`,
-    env: environment,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const { stdout, stderr, exitCode } = await runCommand(script, args, environment);
   expect(exitCode, stderr).toBe(0);
   return JSON.parse(stdout);
 }
