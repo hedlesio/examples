@@ -173,10 +173,13 @@ carries the original idempotency key, so key side effects on it. Acknowledge wit
 work afterwards.
 
 Events: `payin.pending`, `payin.confirmed`, `payin.expired`, `payout.created`, `payout.broadcast`,
-`payout.settled`, `payout.failed`, `swap.accepted`, `swap.executing`, `swap.executed`, `swap.expired`,
-`swap.failed`, `omnibus.low_gas`. Payloads are a discriminated union on `event` (see `src/types.ts`);
-payout payloads carry the per-movement `transfers` array, so check each transfer's status rather than
-assuming every movement settled.
+`payout.settled`, `payout.failed`, `swap.accepted`, `swap.executing`, `swap.executed`,
+`swap.partially_refunded`, `swap.refunded`, `swap.expired`, `swap.failed`, `omnibus.low_gas`. Payloads are a
+discriminated union on `event` (see `src/types.ts`); payout payloads carry the per-movement `transfers` array,
+so check each transfer's status rather than assuming every movement settled. Every `swap.*` payload's `data`
+is the swap exactly as `GET /v1/swaps/:id` returns it after the transition: its id is `data.id`, a failure
+carries `data.failureReason`, and terminal events report `buyAmount`, `payoutTxHash`, `refundTxHash`, and
+`fees`.
 
 ### Swap between assets
 
@@ -190,6 +193,9 @@ bun run swap-quote \
   --sender-address bc1qYourSendingAddress \
   --recipient-address 0xYourReceivingAddress
 ```
+
+Add `--refund-address <sell-chain address>` to send a refund somewhere other than the sender; without it,
+a failed or refunded swap returns the funds to `--sender-address`.
 
 Supported directed pairs are `DOGE`, `LTC`, and `ZEC` into `BTC` or `USDT` (Ethereum), and `BTC` into
 `USDT`. Zcash is transparent-address only, and route availability is dynamic.
@@ -228,8 +234,9 @@ bun run swap-accept \
 The signed payload must come from the quote's exact `fundingTransaction`; the API proves the unsigned
 transaction is unchanged, validates and finalizes every input, then broadcasts it. A retry must resubmit
 the same signed bytes rather than signing again. Track the returned swap via `GET /v1/swaps/:id` through
-`pending`, `executing`, and `executed` — a swap whose deposit never confirms before the deadline ends
-`expired`, and other terminal errors end `failed` with a bounded `failureReason`. `bun run swap-status --id
+`pending`, `executing`, and `executed` — a venue that refunds ends `refunded` or `partially_refunded`
+(see `refundTxHash`), a swap whose deposit never confirms before the deadline ends `expired`, and other
+terminal errors end `failed` with a bounded `failureReason`. `bun run swap-status --id
 <id>` reads one swap (its id matches the quote's) and `bun run swap-status` lists recent ones. An expired
 quote cannot be accepted — request a fresh one rather than re-signing stale bytes.
 

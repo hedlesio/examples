@@ -48,6 +48,11 @@ await runExample(async () => {
         valueName: "address",
         required: true,
       },
+      refundAddress: {
+        description:
+          "Sell-chain address that receives a refund if the swap fails or is refunded (defaults to the sender)",
+        valueName: "address",
+      },
     },
   });
   if (!options) return;
@@ -62,6 +67,7 @@ await runExample(async () => {
     side: choice(options.side, "--side", ["sell", "buy"]),
     senderAddress: options.senderAddress,
     recipientAddress: options.recipientAddress,
+    ...(options.refundAddress ? { refundAddress: options.refundAddress } : {}),
   });
 
   printJson(quote);

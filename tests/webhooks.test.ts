@@ -112,11 +112,17 @@ describe("webhook request handling", () => {
     const body = JSON.stringify({
       event: "swap.executed",
       data: {
-        swapId: "6a2b0c4d-1e2f-4a5b-9c8d-7e6f5a4b3c2d",
+        id: "6a2b0c4d-1e2f-4a5b-9c8d-7e6f5a4b3c2d",
+        status: "executed",
         sellAmount: "1000",
         quotedBuyAmount: "990",
         minimumBuyAmount: "980",
         quotedRate: "0.99",
+        buyAmount: "985",
+        payoutTxHash: "0x5e1f",
+        refundTxHash: null,
+        fees: [],
+        failureReason: null,
         executedAt: "2026-07-30T00:05:00.000Z",
       },
     });

@@ -4,7 +4,10 @@ import { apiKeyCredentials } from "../src/config.ts";
 import { completePayoutSigning } from "../src/payout.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 import { createStamper } from "../src/stamper.ts";
-import type { PayoutTransferInput } from "../src/types.ts";
+import type { OnChainPayoutChain, PayoutTransferInput } from "../src/types.ts";
+
+// Lightning payouts pay a BOLT11 invoice instead of listing transfers.
+const ON_CHAIN_CHAINS = CHAINS.filter((chain): chain is OnChainPayoutChain => chain !== "lightning");
 
 await runExample(async () => {
   const options = parseCommand({
@@ -67,7 +70,7 @@ await runExample(async () => {
 
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const created = await api.createPayout({
-    chain: choice(options.chain, "--chain", CHAINS),
+    chain: choice(options.chain, "--chain", ON_CHAIN_CHAINS),
     asset: options.asset,
     fromAddress: options.from,
     transfers,
