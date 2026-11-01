@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { completePayoutSigning } from "../src/payout.ts";
+import { bitgo, ECPair, payments } from "@bitgo/utxo-lib";
+import { completePayoutSigning, signExternalInputs } from "../src/payout.ts";
+import { fundingNetwork } from "../src/swap.ts";
 import type { PayoutResponse, SignedActivity, SigningRequest, Stamper } from "../src/types.ts";
 
 const firstBody = '{ "timestampMs": 1760000000000, "payload": "0x01" }';
@@ -15,6 +17,7 @@ function payout(signingRequests: SigningRequest[]): PayoutResponse {
     chain: "base",
     asset: "asset",
     fromAddress: "from",
+    additionalFromAddresses: [],
     toAddress: "to",
     amount: "1000",
     feeTotal: null,
@@ -110,5 +113,64 @@ describe("completePayoutSigning", () => {
     expect(
       completePayoutSigning(api, payout([signingRequest("round-0", "body-0")]), stamper),
     ).rejects.toThrow("still requires signatures");
+  });
+});
+
+function twoSourcePsbt() {
+  const network = fundingNetwork("bitcoin");
+  const external = ECPair.makeRandom({ network });
+  const managed = ECPair.makeRandom({ network });
+  const previous = new bitgo.UtxoTransaction(network);
+  previous.addInput(Buffer.alloc(32, 9), 0);
+  for (const key of [external, managed]) {
+    const payment = payments.p2pkh({ pubkey: key.publicKey, network });
+    if (!payment.output) throw new Error("fixture payment failed");
+    previous.addOutput(payment.output, 50_000);
+  }
+  const recipient = payments.p2pkh({ pubkey: ECPair.makeRandom({ network }).publicKey, network });
+  if (!recipient.address) throw new Error("fixture payment failed");
+  const psbt = bitgo.createPsbtForNetwork({ network });
+  for (const index of [0, 1])
+    psbt.addInput({ hash: previous.getId(), index, nonWitnessUtxo: previous.toBuffer() });
+  psbt.addOutput({ address: recipient.address, value: 90_000n });
+  return { external, unsigned: `0x${psbt.toHex()}`, network };
+}
+
+describe("payouts spending addresses Hedles does not control", () => {
+  test("signs only the inputs an external key controls and keeps the transaction unchanged", () => {
+    const fixture = twoSourcePsbt();
+    const signed = signExternalInputs("bitcoin", fixture.unsigned, [fixture.external.toWIF()]);
+    const before = bitgo.createPsbtDecode(fixture.unsigned.slice(2), fixture.network);
+    const after = bitgo.createPsbtDecode(signed.slice(2), fixture.network);
+    expect(after.getUnsignedTx().toHex()).toBe(before.getUnsignedTx().toHex());
+    expect(after.data.inputs[0]?.partialSig).toHaveLength(1);
+    expect(after.data.inputs[1]?.partialSig ?? []).toHaveLength(0);
+  });
+
+  test("refuses keys that control none of the inputs", () => {
+    const fixture = twoSourcePsbt();
+    expect(() =>
+      signExternalInputs("bitcoin", fixture.unsigned, [
+        ECPair.makeRandom({ network: fixture.network }).toWIF(),
+      ]),
+    ).toThrow("none of the external keys");
+  });
+
+  test("sends the signed PSBT as one signedPsbt item with the first stamps", async () => {
+    const fixture = twoSourcePsbt();
+    const submissions: SignedActivity[][] = [];
+    const api = {
+      async submitPayoutSignatures(_target: string, requests: SignedActivity[]) {
+        submissions.push(requests);
+        return payout([]);
+      },
+    };
+    const created = {
+      ...payout([{ ...signingRequest("input-1", firstBody), transaction: fixture.unsigned }]),
+      chain: "bitcoin" as const,
+    };
+    await completePayoutSigning(api, created, stamper, [fixture.external.toWIF()]);
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0]?.map((item) => item.method)).toEqual(["stampedRequest", "signedPsbt"]);
   });
 });

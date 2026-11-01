@@ -1138,7 +1138,7 @@ export interface paths {
                 id: string;
                 tenantId: string;
                 address: string;
-                addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+                addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
                 status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
                 isSignable: boolean;
                 createdAt: string;
@@ -2063,7 +2063,7 @@ export interface paths {
             | "tron"
             | "xrpl"
             | "lightning";
-          role?: "omnibus" | "payin" | "payout_destination" | "wallet";
+          role?: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
           status?: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
         };
         header?: never;
@@ -2082,7 +2082,7 @@ export interface paths {
                 id: string;
                 tenantId: string;
                 address: string;
-                addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+                addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
                 status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
                 isSignable: boolean;
                 createdAt: string;
@@ -2183,7 +2183,7 @@ export interface paths {
               id: string;
               tenantId: string;
               address: string;
-              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
               status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
               isSignable: boolean;
               createdAt: string;
@@ -2308,7 +2308,7 @@ export interface paths {
                     id: string;
                     tenantId: string;
                     address: string;
-                    addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+                    addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
                     status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
                     isSignable: boolean;
                     createdAt: string;
@@ -2419,7 +2419,7 @@ export interface paths {
               id: string;
               tenantId: string;
               address: string;
-              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
               status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
               isSignable: boolean;
               createdAt: string;
@@ -2522,7 +2522,7 @@ export interface paths {
               id: string;
               tenantId: string;
               address: string;
-              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
               status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
               isSignable: boolean;
               createdAt: string;
@@ -2601,7 +2601,7 @@ export interface paths {
               id: string;
               tenantId: string;
               address: string;
-              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+              addressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
               status: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
               isSignable: boolean;
               createdAt: string;
@@ -4466,6 +4466,7 @@ export interface paths {
                   | "lightning";
                 asset: string;
                 fromAddress: string;
+                additionalFromAddresses: string[];
                 toAddress: string | null;
                 invoice?: string;
                 paymentHash?: string;
@@ -4561,10 +4562,12 @@ export interface paths {
                   | "xrpl";
                 asset: string;
                 fromAddress: string;
+                additionalFromAddresses?: string[];
                 transfers: {
                   toAddress: string;
                   amount: string | "all";
                   destinationTag?: number;
+                  memo?: string;
                 }[];
                 reference?: string;
                 executionMode?: "independent" | "atomic";
@@ -4600,6 +4603,7 @@ export interface paths {
                 | "lightning";
               asset: string;
               fromAddress: string;
+              additionalFromAddresses: string[];
               toAddress: string | null;
               invoice?: string;
               paymentHash?: string;
@@ -4794,6 +4798,7 @@ export interface paths {
                 | "lightning";
               asset: string;
               fromAddress: string;
+              additionalFromAddresses: string[];
               toAddress: string | null;
               invoice?: string;
               paymentHash?: string;
@@ -5092,6 +5097,7 @@ export interface paths {
                 | "lightning";
               asset: string;
               fromAddress: string;
+              additionalFromAddresses: string[];
               toAddress: string | null;
               invoice?: string;
               paymentHash?: string;
@@ -5397,6 +5403,7 @@ export interface paths {
                 | "lightning";
               asset: string;
               fromAddress: string;
+              additionalFromAddresses: string[];
               toAddress: string | null;
               invoice?: string;
               paymentHash?: string;
@@ -5625,15 +5632,21 @@ export interface paths {
       };
       requestBody: {
         content: {
-          "application/json": {
-            id: string;
-            method: "stampedRequest";
-            body: string;
-            stamp: {
-              name: string;
-              value: string;
-            };
-          }[];
+          "application/json": (
+            | {
+                id: string;
+                method: "stampedRequest";
+                body: string;
+                stamp: {
+                  name: string;
+                  value: string;
+                };
+              }
+            | {
+                method: "signedPsbt";
+                body: string;
+              }
+          )[];
         };
       };
       responses: {
@@ -5659,6 +5672,7 @@ export interface paths {
                 | "lightning";
               asset: string;
               fromAddress: string;
+              additionalFromAddresses: string[];
               toAddress: string | null;
               invoice?: string;
               paymentHash?: string;
@@ -5959,6 +5973,7 @@ export interface paths {
               | "lightning";
             buyAsset: string;
             senderAddress: string;
+            additionalSenderAddresses?: string[];
             recipientAddress: string;
             refundAddress?: string;
             beneficiary?:
@@ -6022,6 +6037,7 @@ export interface paths {
               quotedBuyAmount: string;
               minimumBuyAmount: string;
               quotedRate: string;
+              additionalSenderAddresses: string[];
               venueFundingAddress: string;
               fundingMemo: string | null;
               fundingTransaction: string;
@@ -6192,6 +6208,7 @@ export interface paths {
               quotedBuyAmount: string;
               minimumBuyAmount: string;
               quotedRate: string;
+              additionalSenderAddresses: string[];
               venueFundingAddress: string;
               fundingMemo: string | null;
               fundingTransaction: string;
@@ -6331,6 +6348,7 @@ export interface paths {
                 minimumBuyAmount: string;
                 quotedRate: string;
                 buyAmount: string | null;
+                additionalSenderAddresses: string[];
                 venueFundingAddress: string;
                 fundingTxHash: string;
                 refundAddress: string;
@@ -6458,6 +6476,7 @@ export interface paths {
                   minimumBuyAmount: string;
                   quotedRate: string;
                   buyAmount: string | null;
+                  additionalSenderAddresses: string[];
                   venueFundingAddress: string;
                   fundingTxHash: string;
                   refundAddress: string;
@@ -6538,6 +6557,7 @@ export interface paths {
                   minimumBuyAmount: string;
                   quotedRate: string;
                   buyAmount: string | null;
+                  additionalSenderAddresses: string[];
                   venueFundingAddress: string;
                   fundingTxHash: string;
                   refundAddress: string;
@@ -6684,72 +6704,166 @@ export interface paths {
         };
       };
       responses: {
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json":
+              | {
+                  id: string;
+                  status:
+                    | "quoted"
+                    | "pending"
+                    | "executing"
+                    | "executed"
+                    | "refunded"
+                    | "partially_refunded"
+                    | "expired"
+                    | "failed";
+                  sellChain:
+                    | "ethereum"
+                    | "polygon"
+                    | "base"
+                    | "solana"
+                    | "bitcoin"
+                    | "litecoin"
+                    | "bitcoin-cash"
+                    | "dogecoin"
+                    | "zcash"
+                    | "tron"
+                    | "xrpl"
+                    | "lightning";
+                  sellAsset: string;
+                  buyChain:
+                    | "ethereum"
+                    | "polygon"
+                    | "base"
+                    | "solana"
+                    | "bitcoin"
+                    | "litecoin"
+                    | "bitcoin-cash"
+                    | "dogecoin"
+                    | "zcash"
+                    | "tron"
+                    | "xrpl"
+                    | "lightning";
+                  buyAsset: string;
+                  sellAmount: string;
+                  quotedBuyAmount: string;
+                  minimumBuyAmount: string;
+                  quotedRate: string;
+                  buyAmount: string | null;
+                  additionalSenderAddresses: string[];
+                  venueFundingAddress: string;
+                  fundingTxHash: string;
+                  refundAddress: string;
+                  payoutTxHash: string | null;
+                  refundTxHash: string | null;
+                  fees: {
+                    type: "inbound" | "outbound" | "liquidity" | "network" | "affiliate" | "service";
+                    amount: string;
+                    asset: string;
+                    protocol: string | null;
+                    amountBps: number | null;
+                  }[];
+                  failureReason: string | null;
+                  executedAt: string | null;
+                  acceptedAt: string;
+                  createdAt: string;
+                }
+              | {
+                  id: string;
+                  signingRequests: {
+                    id: string;
+                    method: "stampedRequest";
+                    body: string;
+                    signer: string;
+                    transaction: string;
+                    token: string;
+                  }[];
+                };
+          };
+        };
         201: {
           headers: {
             [name: string]: unknown;
           };
           content: {
-            "application/json": {
-              id: string;
-              status:
-                | "quoted"
-                | "pending"
-                | "executing"
-                | "executed"
-                | "refunded"
-                | "partially_refunded"
-                | "expired"
-                | "failed";
-              sellChain:
-                | "ethereum"
-                | "polygon"
-                | "base"
-                | "solana"
-                | "bitcoin"
-                | "litecoin"
-                | "bitcoin-cash"
-                | "dogecoin"
-                | "zcash"
-                | "tron"
-                | "xrpl"
-                | "lightning";
-              sellAsset: string;
-              buyChain:
-                | "ethereum"
-                | "polygon"
-                | "base"
-                | "solana"
-                | "bitcoin"
-                | "litecoin"
-                | "bitcoin-cash"
-                | "dogecoin"
-                | "zcash"
-                | "tron"
-                | "xrpl"
-                | "lightning";
-              buyAsset: string;
-              sellAmount: string;
-              quotedBuyAmount: string;
-              minimumBuyAmount: string;
-              quotedRate: string;
-              buyAmount: string | null;
-              venueFundingAddress: string;
-              fundingTxHash: string;
-              refundAddress: string;
-              payoutTxHash: string | null;
-              refundTxHash: string | null;
-              fees: {
-                type: "inbound" | "outbound" | "liquidity" | "network" | "affiliate" | "service";
-                amount: string;
-                asset: string;
-                protocol: string | null;
-                amountBps: number | null;
-              }[];
-              failureReason: string | null;
-              executedAt: string | null;
-              acceptedAt: string;
-              createdAt: string;
-            };
+            "application/json":
+              | {
+                  id: string;
+                  status:
+                    | "quoted"
+                    | "pending"
+                    | "executing"
+                    | "executed"
+                    | "refunded"
+                    | "partially_refunded"
+                    | "expired"
+                    | "failed";
+                  sellChain:
+                    | "ethereum"
+                    | "polygon"
+                    | "base"
+                    | "solana"
+                    | "bitcoin"
+                    | "litecoin"
+                    | "bitcoin-cash"
+                    | "dogecoin"
+                    | "zcash"
+                    | "tron"
+                    | "xrpl"
+                    | "lightning";
+                  sellAsset: string;
+                  buyChain:
+                    | "ethereum"
+                    | "polygon"
+                    | "base"
+                    | "solana"
+                    | "bitcoin"
+                    | "litecoin"
+                    | "bitcoin-cash"
+                    | "dogecoin"
+                    | "zcash"
+                    | "tron"
+                    | "xrpl"
+                    | "lightning";
+                  buyAsset: string;
+                  sellAmount: string;
+                  quotedBuyAmount: string;
+                  minimumBuyAmount: string;
+                  quotedRate: string;
+                  buyAmount: string | null;
+                  additionalSenderAddresses: string[];
+                  venueFundingAddress: string;
+                  fundingTxHash: string;
+                  refundAddress: string;
+                  payoutTxHash: string | null;
+                  refundTxHash: string | null;
+                  fees: {
+                    type: "inbound" | "outbound" | "liquidity" | "network" | "affiliate" | "service";
+                    amount: string;
+                    asset: string;
+                    protocol: string | null;
+                    amountBps: number | null;
+                  }[];
+                  failureReason: string | null;
+                  executedAt: string | null;
+                  acceptedAt: string;
+                  createdAt: string;
+                }
+              | {
+                  id: string;
+                  signingRequests: {
+                    id: string;
+                    method: "stampedRequest";
+                    body: string;
+                    signer: string;
+                    transaction: string;
+                    token: string;
+                  }[];
+                };
           };
         };
         400: {
@@ -7001,6 +7115,7 @@ export interface paths {
               minimumBuyAmount: string;
               quotedRate: string;
               buyAmount: string | null;
+              additionalSenderAddresses: string[];
               venueFundingAddress: string;
               fundingTxHash: string;
               refundAddress: string;
@@ -8375,6 +8490,7 @@ export interface paths {
                             | "lightning";
                           asset: string;
                           fromAddress: string;
+                          additionalFromAddresses: string[];
                           toAddress: string;
                           transfers: {
                             transferId: string;
@@ -8582,6 +8698,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -8646,6 +8763,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -8710,6 +8828,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -8774,6 +8893,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -8838,6 +8958,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -8902,6 +9023,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -8966,6 +9088,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9208,6 +9331,7 @@ export interface paths {
                             | "lightning";
                           asset: string;
                           fromAddress: string;
+                          additionalFromAddresses: string[];
                           toAddress: string;
                           transfers: {
                             transferId: string;
@@ -9415,6 +9539,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9479,6 +9604,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9543,6 +9669,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9607,6 +9734,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9671,6 +9799,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9735,6 +9864,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -9799,6 +9929,7 @@ export interface paths {
                       minimumBuyAmount: string;
                       quotedRate: string;
                       buyAmount: string | null;
+                      additionalSenderAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       refundAddress: string;
@@ -10189,7 +10320,7 @@ export interface components {
       | "create_user_tag"
       | "delete_api_keys"
       | "spark_prepare_transfer";
-    AddressRole: "omnibus" | "payin" | "payout_destination" | "wallet";
+    AddressRole: "omnibus" | "payin" | "payout_destination" | "wallet" | "payout_source";
     AddressStatus: "active" | "available" | "reserved" | "used" | "retired" | "archived" | "deleted";
     Chain:
       | "ethereum"
@@ -10244,7 +10375,7 @@ export interface components {
     TransferStatus: "pending" | "settled" | "failed";
     TransferKind: "recipient" | "fee";
     Role: "reader" | "collector" | "ops" | "admin";
-    SigningMethod: "stampedRequest";
+    SigningMethod: "stampedRequest" | "signedPsbt";
     SwapAmountSide: "sell" | "buy";
     SwapFeeType: "inbound" | "outbound" | "liquidity" | "network" | "affiliate" | "service";
     SwapQuoteStatus: "quoted" | "expired" | "accepted";

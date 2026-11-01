@@ -128,6 +128,13 @@ bun run payout \
 `--reference` is optional. XRPL supports `--destination-tag <uint32>`. Repeat `--to` and `--amount` in pairs
 for a multisend from an EVM or Zcash omnibus; `all` sweeps the balance for a single recipient.
 
+On Bitcoin, Litecoin, Dogecoin and Bitcoin Cash, `--memo <text>` (1–80 UTF-8 bytes, one fixed-amount
+recipient) adds an OP_RETURN output after the recipient, and `--additional-from <address>` (repeatable, up to
+19) spends every confirmed coin of further addresses in the same transaction; change returns to `--from`. An
+additional address Hedles does not control is signed locally: pass its key with `--external-key <wif or hex>`
+and the command adds a `{ method: "signedPsbt", body }` item, the review PSBT with those inputs signed, to
+the first signatures submission. Responses report the extra sources in `additionalFromAddresses`.
+
 A payout is one single-asset transaction: `POST /v1/payouts` takes a top-level `chain`, `asset`, and
 `fromAddress` plus one or more `transfers` (`toAddress`, `amount`, optional `destinationTag`). It never
 accepts signatures. When client signing is required, the response carries opaque `signingRequests`
@@ -195,7 +202,13 @@ bun run swap-quote \
 ```
 
 Add `--refund-address <sell-chain address>` to send a refund somewhere other than the sender; without it,
-a failed or refunded swap returns the funds to `--sender-address`.
+a failed or refunded swap returns the funds to `--sender-address`. On Bitcoin, Litecoin, Dogecoin and Bitcoin
+Cash, repeat `--additional-sender <address>` to fund one swap from several addresses.
+
+When `--sender-address` is a Hedles wallet, the quote returns `signingRequests` instead of a transaction for
+you to sign: Hedles funds the swap with its own payout (carrying any venue memo). Stamp and submit them with
+`bun run swap-sign --quote-id <id> --token <token>`. If an additional sender is an address Hedles does not
+control, sign its inputs on the funding payout with `signedPsbt` (see the payout section) before stamping.
 
 Supported directed pairs are `DOGE`, `LTC`, and `ZEC` into `BTC` or `USDT` (Ethereum), and `BTC` into
 `USDT`. Zcash is transparent-address only, and route availability is dynamic.

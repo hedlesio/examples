@@ -43,6 +43,12 @@ await runExample(async () => {
         valueName: "address",
         required: true,
       },
+      additionalSender: {
+        description:
+          "Another BTC, LTC, DOGE or BCH address that funds the swap with --sender-address (repeatable)",
+        valueName: "address",
+        repeatable: true,
+      },
       recipientAddress: {
         description: "Your wallet address that receives the bought asset",
         valueName: "address",
@@ -66,6 +72,7 @@ await runExample(async () => {
     amount: options.amount,
     side: choice(options.side, "--side", ["sell", "buy"]),
     senderAddress: options.senderAddress,
+    ...(options.additionalSender.length > 0 ? { additionalSenderAddresses: options.additionalSender } : {}),
     recipientAddress: options.recipientAddress,
     ...(options.refundAddress ? { refundAddress: options.refundAddress } : {}),
   });

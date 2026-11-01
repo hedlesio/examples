@@ -6,6 +6,7 @@ import {
   executeSwap,
   fundingSigner,
   signFundingTransaction,
+  signManagedSwap,
 } from "../src/swap.ts";
 import type {
   AcceptSwapQuoteInput,
@@ -27,6 +28,7 @@ function quote(overrides: Partial<SwapQuoteResponse> = {}): SwapQuoteResponse {
     quotedBuyAmount: "8186526",
     minimumBuyAmount: "8104661",
     quotedRate: "90961.4",
+    additionalSenderAddresses: [],
     venueFundingAddress: "bc1qvenue",
     refundAddress: "bc1qsender",
     fundingMemo: null,
@@ -51,6 +53,7 @@ function swap(id: string): SwapResponse {
     quotedBuyAmount: "8186526",
     minimumBuyAmount: "8104661",
     quotedRate: "90961.4",
+    additionalSenderAddresses: [],
     venueFundingAddress: "bc1qvenue",
     fundingTxHash: "ab".repeat(32),
     refundAddress: "bc1qsender",
@@ -162,5 +165,53 @@ describe("executeSwap", () => {
     // retry after a lost response is safe.
     const retry = await acceptQuote(api, issued, fundingSigner(f.senderWif, "dogecoin"));
     expect(retry.signature).toBe(result.signature);
+  });
+});
+
+describe("signManagedSwap", () => {
+  const stamper = {
+    async stamp(input: string) {
+      return { stampHeaderName: "X-Stamp", stampHeaderValue: `signed:${input}` };
+    },
+  };
+
+  test("stamps the funding payout's requests and returns them with their tokens", async () => {
+    const submitted: unknown[] = [];
+    const api = {
+      async prepareSwapSigning() {
+        return {
+          id: "quote-1",
+          signingRequests: [
+            {
+              id: "00000000-0000-4000-8000-000000000001",
+              method: "stampedRequest" as const,
+              body: "body-1",
+              signer: "bc1qsender",
+              transaction: "0x70736274ff",
+              token: "request-token",
+            },
+          ],
+        };
+      },
+      async submitSwapSignatures(quoteId: string, requests: unknown[]) {
+        submitted.push({ quoteId, requests });
+        return { signed: true } as never;
+      },
+    };
+    await signManagedSwap(api, "quote-1", "quote-token", stamper);
+    expect(submitted).toEqual([
+      {
+        quoteId: "quote-1",
+        requests: [
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            method: "stampedRequest",
+            body: "body-1",
+            token: "request-token",
+            stamp: { name: "X-Stamp", value: "signed:body-1" },
+          },
+        ],
+      },
+    ]);
   });
 });
