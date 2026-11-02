@@ -4,7 +4,18 @@ import { stampActivities } from "./signing.ts";
 import { fundingNetwork, utxoKeyPair } from "./swap.ts";
 import type { CreatePayoutResponse, PayoutResponse, SignedActivity, Stamper } from "./types.ts";
 
-type PayoutSigningApi = Pick<HedlesApi, "submitPayoutSignatures">;
+type PayoutSigningApi = Pick<HedlesApi, "submitPayoutSignatures" | "getPayout">;
+
+export interface RoundWait {
+  intervalMs: number;
+  timeoutMs: number;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+}
+
+// A Zcash payout spending mining rewards returns an empty round while Hedles
+// proves its first transaction (usually 15–30 s), then the next round on a read.
+export const DEFAULT_ROUND_WAIT: RoundWait = { intervalMs: 5_000, timeoutMs: 10 * 60_000 };
 
 // Two rounds cover the deepest published flow (EIP-7702 authorization, then the
 // resulting transaction); one extra round absorbs a future additional request.
@@ -38,10 +49,14 @@ export async function completePayoutSigning(
   created: CreatePayoutResponse,
   stamper: Stamper,
   externalKeys: readonly string[] = [],
+  wait: RoundWait = DEFAULT_ROUND_WAIT,
 ): Promise<PayoutResponse> {
   let response = created;
 
   for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
+    if (round > 0 && response.signingRequests.length === 0 && response.status === "pending") {
+      response = await waitForNextRound(api, response.id, wait);
+    }
     if (response.signingRequests.length === 0) return response;
 
     const stamped: SignedActivity[] = await stampActivities(response.signingRequests, stamper);
@@ -56,4 +71,20 @@ export async function completePayoutSigning(
   }
 
   throw new Error(`Payout still requires signatures after ${MAX_SIGNING_ROUNDS} signing rounds`);
+}
+
+async function waitForNextRound(
+  api: PayoutSigningApi,
+  payoutId: string,
+  wait: RoundWait,
+): Promise<PayoutResponse> {
+  const sleep = wait.sleep ?? Bun.sleep;
+  const now = wait.now ?? Date.now;
+  const deadline = now() + wait.timeoutMs;
+  for (;;) {
+    await sleep(wait.intervalMs);
+    const payout = await api.getPayout(payoutId);
+    if (payout.signingRequests.length > 0 || payout.status !== "pending") return payout;
+    if (now() >= deadline) throw new Error(`payout ${payoutId} is pending with no next signing round`);
+  }
 }
