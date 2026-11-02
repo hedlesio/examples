@@ -214,4 +214,30 @@ describe("signManagedSwap", () => {
       },
     ]);
   });
+  test("signs the second round a first EVM payout returns after its delegation authorization", async () => {
+    const request = (n: number) => ({
+      id: `00000000-0000-4000-8000-00000000000${n}`,
+      method: "stampedRequest" as const,
+      body: `body-${n}`,
+      signer: "0x0000000000000000000000000000000000000001",
+      transaction: "0x04",
+      token: `token-${n}`,
+    });
+    const rounds: string[][] = [];
+    const api = {
+      async prepareSwapSigning() {
+        return { id: "quote-1", signingRequests: [request(1)] };
+      },
+      async submitSwapSignatures(_quoteId: string, requests: { body: string }[]) {
+        rounds.push(requests.map((r) => r.body));
+        return (
+          rounds.length === 1 ? { id: "quote-1", signingRequests: [request(2)] } : { status: "accepted" }
+        ) as never;
+      },
+    };
+    expect(await signManagedSwap(api, "quote-1", "quote-token", stamper)).toEqual({
+      status: "accepted",
+    } as never);
+    expect(rounds).toEqual([["body-1"], ["body-2"]]);
+  });
 });

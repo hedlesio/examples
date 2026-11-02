@@ -126,29 +126,37 @@ type ManagedSwapApi = Pick<HedlesApi, "prepareSwapSigning" | "submitSwapSignatur
 
 // A Hedles wallet never signs the venue's transaction: Hedles funds the swap
 // with its own payout, and the quote's signingRequests are that payout's.
-// Stamp each body unchanged and return it with its quote-bound token.
+// Stamp each body unchanged and return it with its quote-bound token. A first
+// EVM payout from a wallet takes two rounds: the delegation authorization,
+// then the transaction it installs, so keep signing while requests come back.
+const MAX_SIGNING_ROUNDS = 4;
+
 export async function signManagedSwap(
   api: ManagedSwapApi,
   quoteId: string,
   token: string,
   stamper: Stamper,
 ): Promise<SubmitSwapSignaturesResponse | SwapResponse> {
-  const prepared = await api.prepareSwapSigning({ quoteId, token });
+  let pending: SubmitSwapSignaturesResponse | SwapResponse = await api.prepareSwapSigning({ quoteId, token });
   // A custodial wallet's funding is signed by Hedles; the swap comes back accepted.
-  if (!("signingRequests" in prepared)) return prepared;
-  const { signingRequests } = prepared;
-  if (signingRequests.length === 0) throw new Error(`quote ${quoteId} has nothing for this wallet to sign`);
-  const stamped: SignedSwapActivity[] = await Promise.all(
-    signingRequests.map(async (request) => {
-      const stamp = await stamper.stamp(request.body);
-      return {
-        id: request.id,
-        method: request.method,
-        body: request.body,
-        token: request.token,
-        stamp: { name: stamp.stampHeaderName, value: stamp.stampHeaderValue },
-      };
-    }),
-  );
-  return api.submitSwapSignatures(quoteId, stamped);
+  if (!("signingRequests" in pending)) return pending;
+  if (pending.signingRequests.length === 0)
+    throw new Error(`quote ${quoteId} has nothing for this wallet to sign`);
+  for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
+    if (!("signingRequests" in pending) || pending.signingRequests.length === 0) return pending;
+    const stamped: SignedSwapActivity[] = await Promise.all(
+      pending.signingRequests.map(async (request) => {
+        const stamp = await stamper.stamp(request.body);
+        return {
+          id: request.id,
+          method: request.method,
+          body: request.body,
+          token: request.token,
+          stamp: { name: stamp.stampHeaderName, value: stamp.stampHeaderValue },
+        };
+      }),
+    );
+    pending = await api.submitSwapSignatures(quoteId, stamped);
+  }
+  throw new Error(`quote ${quoteId} still needs signatures after ${MAX_SIGNING_ROUNDS} rounds`);
 }

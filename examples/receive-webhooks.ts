@@ -118,5 +118,5 @@ await runExample(async () => {
   });
 
   console.log(`Listening on http://localhost:${server.port}${options.path}`);
-  console.log("Expose it with: cloudflared tunnel --url http://localhost:" + server.port);
+  console.log(`Expose it with: cloudflared tunnel --url http://localhost:${server.port}`);
 });
