@@ -134,8 +134,10 @@ export async function receiveAndSweep(
     amount: input.amount,
     ...(input.reference ? { reference: input.reference } : {}),
   });
+  // Hedles ignores transfers sent from the tenant's own omnibus or payin
+  // addresses: moving funds internally is not a payment.
   log(
-    `payin ${created.id}: send ${input.amount} ${input.asset} (atomic units) on ${input.chain} to ${created.address}`,
+    `payin ${created.id}: send ${input.amount} ${input.asset} (atomic units) on ${input.chain} to ${created.address} from a wallet outside Hedles`,
   );
   const payin = await waitForPayin(api, created.id, poll, (row) => log(`payin ${row.id}: ${row.status}`));
   const omnibus = input.sweepTo ?? (await omnibusAddress(api, input.chain));

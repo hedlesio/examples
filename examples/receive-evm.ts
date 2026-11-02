@@ -13,7 +13,7 @@ await runExample(async () => {
   const options = parseCommand({
     name: "receive-evm",
     description:
-      "Receive a payment on an EVM chain and sweep it to the omnibus: create a payin, wait until it is confirmed, then sign the sweep payout and wait until it settles.",
+      "Receive a payment on an EVM chain and sweep it to the omnibus: create a payin, wait until it is confirmed, then sign the sweep payout and wait until it settles. Pay from a wallet outside Hedles; transfers from your own Hedles addresses are not payins.",
     options: {
       ...authenticatedOptions,
       chain: {
