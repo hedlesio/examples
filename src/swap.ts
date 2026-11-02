@@ -1,5 +1,6 @@
 import { bitgo, ECPair, type Network, networks } from "@bitgo/utxo-lib";
-import type { HedlesApi } from "./api.ts";
+import { type HedlesApi, HedlesApiError } from "./api.ts";
+import type { RoundWait } from "./payout.ts";
 import type {
   RequestSwapQuoteInput,
   SignedSwapActivity,
@@ -122,28 +123,35 @@ export async function acceptQuote(
   return { quote, signature, swap };
 }
 
-type ManagedSwapApi = Pick<HedlesApi, "prepareSwapSigning" | "submitSwapSignatures">;
+type ManagedSwapApi = Pick<HedlesApi, "prepareSwapSigning" | "submitSwapSignatures" | "getSwap">;
 
 // A Hedles wallet never signs the venue's transaction: Hedles funds the swap
 // with its own payout, and the quote's signingRequests are that payout's.
 // Stamp each body unchanged and return it with its quote-bound token. A first
-// EVM payout from a wallet takes two rounds: the delegation authorization,
-// then the transaction it installs, so keep signing while requests come back.
+// EVM payout takes two rounds (authorization, then transaction). A ZEC sell
+// funded from mining rewards takes two rounds with a pause between them while
+// Hedles proves its first transaction, and the swap only exists once Hedles
+// sends the second; an empty answer means wait, then read the swap or ask for
+// the next round again.
 const MAX_SIGNING_ROUNDS = 4;
+// The second Zcash transaction waits for the first to be mined (about 75 s a
+// block), so the swap can take several minutes to appear.
+export const MANAGED_SWAP_WAIT: RoundWait = { intervalMs: 5_000, timeoutMs: 30 * 60_000 };
+
+type ManagedSwapStep = SubmitSwapSignaturesResponse | SwapResponse;
 
 export async function signManagedSwap(
   api: ManagedSwapApi,
   quoteId: string,
   token: string,
   stamper: Stamper,
-): Promise<SubmitSwapSignaturesResponse | SwapResponse> {
-  let pending: SubmitSwapSignaturesResponse | SwapResponse = await api.prepareSwapSigning({ quoteId, token });
-  // A custodial wallet's funding is signed by Hedles; the swap comes back accepted.
-  if (!("signingRequests" in pending)) return pending;
-  if (pending.signingRequests.length === 0)
-    throw new Error(`quote ${quoteId} has nothing for this wallet to sign`);
+  wait: RoundWait = MANAGED_SWAP_WAIT,
+): Promise<ManagedSwapStep> {
+  let pending: ManagedSwapStep = await api.prepareSwapSigning({ quoteId, token });
   for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
-    if (!("signingRequests" in pending) || pending.signingRequests.length === 0) return pending;
+    if (!("signingRequests" in pending)) return pending;
+    if (pending.signingRequests.length === 0) pending = await waitForSwapStep(api, quoteId, token, wait);
+    if (!("signingRequests" in pending)) return pending;
     const stamped: SignedSwapActivity[] = await Promise.all(
       pending.signingRequests.map(async (request) => {
         const stamp = await stamper.stamp(request.body);
@@ -158,5 +166,33 @@ export async function signManagedSwap(
     );
     pending = await api.submitSwapSignatures(quoteId, stamped);
   }
+  if ("signingRequests" in pending && pending.signingRequests.length === 0) {
+    return waitForSwapStep(api, quoteId, token, wait);
+  }
   throw new Error(`quote ${quoteId} still needs signatures after ${MAX_SIGNING_ROUNDS} rounds`);
+}
+
+// The swap is accepted once its funding is sent; until then GET /v1/swaps/:id
+// answers 404 and posting {quoteId, token} again returns the current round.
+async function waitForSwapStep(
+  api: ManagedSwapApi,
+  quoteId: string,
+  token: string,
+  wait: RoundWait,
+): Promise<ManagedSwapStep> {
+  const sleep = wait.sleep ?? Bun.sleep;
+  const now = wait.now ?? Date.now;
+  const deadline = now() + wait.timeoutMs;
+  for (;;) {
+    await sleep(wait.intervalMs);
+    try {
+      return await api.getSwap(quoteId);
+    } catch (err) {
+      if (!(err instanceof HedlesApiError) || err.status !== 404) throw err;
+    }
+    const next = await api.prepareSwapSigning({ quoteId, token });
+    if (!("signingRequests" in next) || next.signingRequests.length > 0) return next;
+    if (now() >= deadline)
+      throw new Error(`quote ${quoteId} has no next signing round and no accepted swap yet`);
+  }
 }

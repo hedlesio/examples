@@ -18,6 +18,7 @@
     "payout": "bun examples/create-payout.ts",
     "receive-evm": "bun examples/receive-evm.ts",
     "receive-zcash": "bun examples/receive-zcash.ts",
+    "zcash-payout": "bun examples/zcash-payout.ts",
     "swap-quote": "bun examples/request-swap-quote.ts",
     "swap-accept": "bun examples/accept-swap-quote.ts",
     "swap-sign": "bun examples/sign-managed-swap.ts",

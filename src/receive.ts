@@ -74,7 +74,7 @@ export async function waitForPayin(
 // `all` moves the address's whole balance of the asset. The reference makes a
 // rerun return the same payout instead of creating a second sweep.
 export async function sweepToOmnibus(
-  api: Pick<HedlesApi, "createPayout" | "submitPayoutSignatures">,
+  api: Pick<HedlesApi, "createPayout" | "submitPayoutSignatures" | "getPayout">,
   payin: PayinResponse,
   omnibus: string,
   stamper: Stamper,

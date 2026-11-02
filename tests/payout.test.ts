@@ -36,6 +36,20 @@ function payout(signingRequests: SigningRequest[]): PayoutResponse {
   };
 }
 
+let clock = 0;
+const instantWait = {
+  intervalMs: 10,
+  timeoutMs: 60_000,
+  sleep: async (ms: number) => {
+    clock += ms;
+  },
+  now: () => clock,
+};
+
+async function unexpectedRead(): Promise<PayoutResponse> {
+  throw new Error("unexpected payout read");
+}
+
 const stamper: Stamper = {
   async stamp(input) {
     return {
@@ -49,6 +63,7 @@ describe("completePayoutSigning", () => {
   test("uses the payout id for authorization and transaction rounds", async () => {
     const submissions: Array<{ target: string; requests: SignedActivity[] }> = [];
     const api = {
+      getPayout: unexpectedRead,
       async submitPayoutSignatures(target: string, requests: SignedActivity[]) {
         submissions.push({ target, requests });
         if (submissions.length === 1) return payout([signingRequest("round-2", "body-2")]);
@@ -88,6 +103,7 @@ describe("completePayoutSigning", () => {
   test("returns immediately when the payout needs no client signature", async () => {
     const initial = payout([]);
     const api = {
+      getPayout: unexpectedRead,
       async submitPayoutSignatures(): Promise<PayoutResponse> {
         throw new Error("must not submit signatures");
       },
@@ -101,9 +117,55 @@ describe("completePayoutSigning", () => {
     expect(await completePayoutSigning(api, initial, silent)).toBe(initial);
   });
 
+  test("waits for the next round while a Zcash mining-reward payout proves its first transaction", async () => {
+    const derivation = signingRequest("derivation", "derivation-body");
+    const tx1 = signingRequest("tx1-input-0", "tx1-body");
+    const reads = [payout([]), payout([]), payout([tx1])].map((row) => ({ ...row, chain: "zcash" as const }));
+    const submitted: string[] = [];
+    let read = 0;
+    const api = {
+      async submitPayoutSignatures(_id: string, requests: SignedActivity[]) {
+        submitted.push(requests.map((request) => request.body).join(","));
+        if (submitted.length === 1)
+          return { ...payout([]), chain: "zcash" as const, status: "pending" as const, txHash: null };
+        return { ...payout([]), chain: "zcash" as const, status: "processing" as const, txHash: null };
+      },
+      async getPayout() {
+        const row = reads[read] ?? reads[reads.length - 1]!;
+        read += 1;
+        return { ...row, status: "pending" as const, txHash: null };
+      },
+    };
+
+    const result = await completePayoutSigning(api, payout([derivation]), stamper, [], instantWait);
+
+    expect(submitted).toEqual(["derivation-body", "tx1-body"]);
+    expect(read).toBe(3);
+    expect(result.status).toBe("processing");
+  });
+
+  test("gives up when the next round never appears", async () => {
+    const api = {
+      async submitPayoutSignatures() {
+        return { ...payout([]), status: "pending" as const, txHash: null };
+      },
+      async getPayout() {
+        return { ...payout([]), status: "pending" as const, txHash: null };
+      },
+    };
+
+    await expect(
+      completePayoutSigning(api, payout([signingRequest("derivation", "derivation-body")]), stamper, [], {
+        ...instantWait,
+        timeoutMs: 30,
+      }),
+    ).rejects.toThrow("no next signing round");
+  });
+
   test("fails when signing requests never drain", async () => {
     let round = 0;
     const api = {
+      getPayout: unexpectedRead,
       async submitPayoutSignatures() {
         round += 1;
         return payout([signingRequest(`round-${round}`, `body-${round}`)]);
@@ -160,6 +222,7 @@ describe("payouts spending addresses Hedles does not control", () => {
     const fixture = twoSourcePsbt();
     const submissions: SignedActivity[][] = [];
     const api = {
+      getPayout: unexpectedRead,
       async submitPayoutSignatures(_target: string, requests: SignedActivity[]) {
         submissions.push(requests);
         return payout([]);

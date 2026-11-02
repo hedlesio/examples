@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { bitgo, ECPair } from "@bitgo/utxo-lib";
+import { HedlesApiError } from "../src/api.ts";
 import {
   acceptQuote,
   assertQuoteAcceptable,
@@ -197,6 +198,9 @@ describe("signManagedSwap", () => {
         submitted.push({ quoteId, requests });
         return { signed: true } as never;
       },
+      async getSwap(): Promise<SwapResponse> {
+        throw new Error("unexpected swap read");
+      },
     };
     await signManagedSwap(api, "quote-1", "quote-token", stamper);
     expect(submitted).toEqual([
@@ -234,10 +238,55 @@ describe("signManagedSwap", () => {
           rounds.length === 1 ? { id: "quote-1", signingRequests: [request(2)] } : { status: "accepted" }
         ) as never;
       },
+      async getSwap(): Promise<SwapResponse> {
+        throw new Error("unexpected swap read");
+      },
     };
     expect(await signManagedSwap(api, "quote-1", "quote-token", stamper)).toEqual({
       status: "accepted",
     } as never);
     expect(rounds).toEqual([["body-1"], ["body-2"]]);
+  });
+  test("waits through a Zcash mining-reward funding: derivation, proof, first transaction, then the swap", async () => {
+    const request = (id: string) => ({
+      id,
+      method: "stampedRequest" as const,
+      body: `body-${id}`,
+      signer: "t1signer",
+      transaction: "00",
+      token: `token-${id}`,
+    });
+    const prepares = [
+      { id: "quote-1", signingRequests: [request("derivation")] },
+      { id: "quote-1", signingRequests: [] },
+      { id: "quote-1", signingRequests: [request("tx1")] },
+      { id: "quote-1", signingRequests: [] },
+    ];
+    const swapReads = [404, 404, 404, 200];
+    const submitted: string[][] = [];
+    let clock = 0;
+    const api = {
+      async prepareSwapSigning() {
+        return prepares.shift() ?? { id: "quote-1", signingRequests: [] };
+      },
+      async submitSwapSignatures(_quoteId: string, requests: { body: string }[]) {
+        submitted.push(requests.map((r) => r.body));
+        return { id: "quote-1", signingRequests: [] } as never;
+      },
+      async getSwap() {
+        if ((swapReads.shift() ?? 200) === 404) throw new HedlesApiError(404, { code: "swap_not_found" });
+        return { id: "quote-1", status: "pending" } as never;
+      },
+    };
+    const result = await signManagedSwap(api, "quote-1", "quote-token", stamper, {
+      intervalMs: 10,
+      timeoutMs: 60_000,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      now: () => clock,
+    });
+    expect(submitted).toEqual([["body-derivation"], ["body-tx1"]]);
+    expect(result).toEqual({ id: "quote-1", status: "pending" } as never);
   });
 });

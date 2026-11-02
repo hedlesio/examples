@@ -120,6 +120,9 @@ describe("sweepToOmnibus", () => {
         submitted.push(items);
         return submitted.length === 1 ? payout("pending", [request("transaction")]) : payout("broadcast");
       },
+      async getPayout(): Promise<PayoutResponse> {
+        throw new Error("unexpected payout read");
+      },
     };
     const result = await sweepToOmnibus(
       api,
