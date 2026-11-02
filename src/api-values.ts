@@ -11,6 +11,7 @@ export const CHAINS = [
   "zcash",
   "tron",
   "xrpl",
+  "lightning",
 ] as const;
 export const WEBHOOK_EVENT_TYPES = [
   "payin.pending",
@@ -24,6 +25,8 @@ export const WEBHOOK_EVENT_TYPES = [
   "swap.accepted",
   "swap.executing",
   "swap.executed",
+  "swap.partially_refunded",
+  "swap.refunded",
   "swap.expired",
   "swap.failed",
 ] as const;

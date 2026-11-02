@@ -1,6 +1,13 @@
 import { bitgo, ECPair, type Network, networks } from "@bitgo/utxo-lib";
 import type { HedlesApi } from "./api.ts";
-import type { RequestSwapQuoteInput, SwapQuoteResponse, SwapResponse } from "./types.ts";
+import type {
+  RequestSwapQuoteInput,
+  SignedSwapActivity,
+  Stamper,
+  SubmitSwapSignaturesResponse,
+  SwapQuoteResponse,
+  SwapResponse,
+} from "./types.ts";
 
 // Swap funding transactions are PSBTs on the UTXO chains Hedles can quote as
 // the sell leg. The network selects address encoding and the sighash scheme
@@ -45,12 +52,16 @@ function keyNetwork(network: Network): Network {
 
 // Accepts the sender key as WIF or as 32-byte hex. The key must control the
 // quote's senderAddress; it never leaves the process.
-export function fundingSigner(secret: string, sellChain: string): FundingSigner {
-  const network = keyNetwork(fundingNetwork(sellChain));
+export function utxoKeyPair(secret: string, chain: string) {
+  const network = keyNetwork(fundingNetwork(chain));
   const trimmed = secret.trim();
-  const keyPair = /^(0x)?[0-9a-fA-F]{64}$/.test(trimmed)
+  return /^(0x)?[0-9a-fA-F]{64}$/.test(trimmed)
     ? ECPair.fromPrivateKey(Buffer.from(trimmed.replace(/^0x/i, ""), "hex"), { network })
     : ECPair.fromWIF(trimmed, network);
+}
+
+export function fundingSigner(secret: string, sellChain: string): FundingSigner {
+  const keyPair = utxoKeyPair(secret, sellChain);
   return {
     sign: (psbt) => {
       psbt.signAllInputs(keyPair);
@@ -109,4 +120,43 @@ export async function acceptQuote(
   const signature = signFundingTransaction(quote.sellChain, quote.fundingTransaction, signer);
   const swap = await api.acceptSwapQuote({ quoteId: quote.id, token: quote.token, signature });
   return { quote, signature, swap };
+}
+
+type ManagedSwapApi = Pick<HedlesApi, "prepareSwapSigning" | "submitSwapSignatures">;
+
+// A Hedles wallet never signs the venue's transaction: Hedles funds the swap
+// with its own payout, and the quote's signingRequests are that payout's.
+// Stamp each body unchanged and return it with its quote-bound token. A first
+// EVM payout from a wallet takes two rounds: the delegation authorization,
+// then the transaction it installs, so keep signing while requests come back.
+const MAX_SIGNING_ROUNDS = 4;
+
+export async function signManagedSwap(
+  api: ManagedSwapApi,
+  quoteId: string,
+  token: string,
+  stamper: Stamper,
+): Promise<SubmitSwapSignaturesResponse | SwapResponse> {
+  let pending: SubmitSwapSignaturesResponse | SwapResponse = await api.prepareSwapSigning({ quoteId, token });
+  // A custodial wallet's funding is signed by Hedles; the swap comes back accepted.
+  if (!("signingRequests" in pending)) return pending;
+  if (pending.signingRequests.length === 0)
+    throw new Error(`quote ${quoteId} has nothing for this wallet to sign`);
+  for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
+    if (!("signingRequests" in pending) || pending.signingRequests.length === 0) return pending;
+    const stamped: SignedSwapActivity[] = await Promise.all(
+      pending.signingRequests.map(async (request) => {
+        const stamp = await stamper.stamp(request.body);
+        return {
+          id: request.id,
+          method: request.method,
+          body: request.body,
+          token: request.token,
+          stamp: { name: stamp.stampHeaderName, value: stamp.stampHeaderValue },
+        };
+      }),
+    );
+    pending = await api.submitSwapSignatures(quoteId, stamped);
+  }
+  throw new Error(`quote ${quoteId} still needs signatures after ${MAX_SIGNING_ROUNDS} rounds`);
 }
