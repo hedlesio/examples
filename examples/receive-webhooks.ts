@@ -22,7 +22,9 @@ function describe(event: WebhookEvent): string {
     case "payin.pending":
       return `payin ${event.data.payinId} seen in ${event.data.txHash} for ${event.data.amount}`;
     case "payin.confirmed":
-      return `payin ${event.data.payinId} confirmed at block ${event.data.blockNumber}`;
+      return "blockNumber" in event.data
+        ? `payin ${event.data.payinId} confirmed at block ${event.data.blockNumber}`
+        : `payin ${event.data.payinId} confirmed`;
     case "payin.expired":
       return `payin ${event.data.payinId} expired unpaid`;
     case "payout.created":
@@ -30,19 +32,25 @@ function describe(event: WebhookEvent): string {
     case "payout.broadcast":
       return `payout ${event.data.payoutId} broadcast as ${event.data.txHash}`;
     case "payout.settled":
-      return `payout ${event.data.payoutId} settled in ${event.data.txHash} (check each transfer status)`;
+      return "txHash" in event.data
+        ? `payout ${event.data.payoutId} settled in ${event.data.txHash} (check each transfer status)`
+        : `payout ${event.data.payoutId} paid invoice ${event.data.paymentHash} (check each transfer status)`;
     case "payout.failed":
       return `payout ${event.data.payoutId} failed: ${event.data.reason}`;
     case "swap.accepted":
-      return `swap ${event.data.swapId} funded by ${event.data.fundingTxHash}`;
+      return `swap ${event.data.id} funded by ${event.data.fundingTxHash}`;
     case "swap.executing":
-      return `swap ${event.data.swapId} executing after funding ${event.data.fundingTxHash}`;
+      return `swap ${event.data.id} executing after funding ${event.data.fundingTxHash}`;
     case "swap.executed":
-      return `swap ${event.data.swapId} executed at ${event.data.executedAt}`;
+      return `swap ${event.data.id} delivered ${event.data.buyAmount} in ${event.data.payoutTxHash}`;
+    case "swap.partially_refunded":
+      return `swap ${event.data.id} delivered ${event.data.buyAmount} and refunded the rest in ${event.data.refundTxHash}`;
+    case "swap.refunded":
+      return `swap ${event.data.id} refunded to ${event.data.refundAddress} in ${event.data.refundTxHash}`;
     case "swap.expired":
-      return `swap ${event.data.swapId} expired before its deposit confirmed`;
+      return `swap ${event.data.id} expired before its deposit confirmed`;
     case "swap.failed":
-      return `swap ${event.data.swapId} failed: ${event.data.reason}`;
+      return `swap ${event.data.id} failed: ${event.data.failureReason}`;
   }
 }
 
@@ -110,5 +118,5 @@ await runExample(async () => {
   });
 
   console.log(`Listening on http://localhost:${server.port}${options.path}`);
-  console.log("Expose it with: cloudflared tunnel --url http://localhost:" + server.port);
+  console.log(`Expose it with: cloudflared tunnel --url http://localhost:${server.port}`);
 });
