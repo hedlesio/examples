@@ -2,6 +2,8 @@ import type {
   AcceptSwapQuoteInput,
   AcceptSwapQuoteResponse,
   AddressEntry,
+  AddressListOptions,
+  AddressPage,
   BeginClaimResponse,
   Chain,
   ClaimResponse,
@@ -105,6 +107,14 @@ export class HedlesApi {
     });
   }
 
+  listAddresses(options: AddressListOptions = {}): Promise<AddressPage> {
+    return this.request(`/v1/addresses${queryString(options)}`);
+  }
+
+  getPayin(payinId: string): Promise<PayinResponse> {
+    return this.request(`/v1/payins/${encodeURIComponent(payinId)}`);
+  }
+
   createPayin(input: CreatePayinInput): Promise<PayinResponse> {
     return this.request("/v1/payins", {
       method: "POST",
@@ -172,12 +182,7 @@ export class HedlesApi {
   }
 
   listSwaps(options: ListOptions = {}): Promise<Paginated<SwapResponse>> {
-    const query = new URLSearchParams();
-    for (const [name, value] of Object.entries(options)) {
-      if (value !== undefined) query.set(name, String(value));
-    }
-    const suffix = query.size === 0 ? "" : `?${query}`;
-    return this.request(`/v1/swaps${suffix}`);
+    return this.request(`/v1/swaps${queryString(options)}`);
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -192,6 +197,14 @@ export class HedlesApi {
     if (!response.ok) throw new HedlesApiError(response.status, errorBody(body));
     return body as T;
   }
+}
+
+function queryString(options: object): string {
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(options)) {
+    if (value !== undefined) query.set(name, String(value));
+  }
+  return query.size === 0 ? "" : `?${query}`;
 }
 
 function parseBody(text: string): unknown {
