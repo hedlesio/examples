@@ -52,6 +52,11 @@ await runExample(async () => {
         description: "Your wallet address that receives the bought asset",
         valueName: "address",
       },
+      refundAddress: {
+        description:
+          "Sell-chain address that receives a refund if the swap fails or is refunded (defaults to the sender)",
+        valueName: "address",
+      },
     },
   });
   if (!options) return;
@@ -77,6 +82,7 @@ await runExample(async () => {
       side: choice(options.side, "--side", ["sell", "buy"]),
       senderAddress: requireOption(options.senderAddress, "--sender-address"),
       recipientAddress: requireOption(options.recipientAddress, "--recipient-address"),
+      ...(options.refundAddress ? { refundAddress: options.refundAddress } : {}),
     },
     fundingSigner(signingKey, sellChain),
   );

@@ -13,12 +13,15 @@ import type {
   Paginated,
   PayinResponse,
   PayoutResponse,
+  PrepareSwapSigningResponse,
   RequestSwapQuoteInput,
   SessionBootstrapResponse,
   SessionResponse,
   SignedActivity,
   SignedIdentityRequest,
+  SignedSwapActivity,
   SignedSwapQuoteInput,
+  SubmitSwapSignaturesResponse,
   SwapQuoteResponse,
   SwapResponse,
   VerifyClaimCodeResponse,
@@ -144,6 +147,23 @@ export class HedlesApi {
     return this.request("/v1/swaps", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  }
+
+  prepareSwapSigning(input: AcceptSwapQuoteInput): Promise<PrepareSwapSigningResponse> {
+    return this.request("/v1/swaps", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  submitSwapSignatures(
+    quoteId: string,
+    requests: SignedSwapActivity[],
+  ): Promise<SubmitSwapSignaturesResponse> {
+    return this.request(`/v1/swaps/${encodeURIComponent(quoteId)}/signatures`, {
+      method: "POST",
+      body: JSON.stringify(requests),
     });
   }
 
