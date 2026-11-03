@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { obtainSession } from "../src/auth.ts";
+import { rm, stat } from "node:fs/promises";
+import { cachedSessionToken, obtainSession } from "../src/auth.ts";
 import type { BearerSessionResponse, SignedIdentityRequest, Stamper } from "../src/types.ts";
 
 const response: BearerSessionResponse = {
@@ -82,4 +83,27 @@ test("rejects a browser-only session response in the bearer-token helper", async
     },
   };
   await expect(obtainSession(api, stamper)).rejects.toThrow("bearer session token");
+});
+
+describe("cachedSessionToken", () => {
+  const login =
+    (session: string, expiresIn = 3600) =>
+    async () => ({ ...response, session, expiresIn });
+
+  test("shares one session between commands until shortly before it expires", async () => {
+    const path = `${Bun.env.TMPDIR ?? "/tmp"}/hedles-session-${crypto.randomUUID()}.json`;
+    const now = Date.now();
+    expect(await cachedSessionToken(path, login("first"), now)).toBe("first");
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
+    expect(await cachedSessionToken(path, login("second"), now + 30 * 60_000)).toBe("first");
+    expect(await cachedSessionToken(path, login("third"), now + 56 * 60_000)).toBe("third");
+    await rm(path);
+  });
+
+  test("logs in again when the cache file is unreadable", async () => {
+    const path = `${Bun.env.TMPDIR ?? "/tmp"}/hedles-session-${crypto.randomUUID()}.json`;
+    await Bun.write(path, "not json");
+    expect(await cachedSessionToken(path, login("fresh"))).toBe("fresh");
+    await rm(path);
+  });
 });

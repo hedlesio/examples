@@ -4733,6 +4733,7 @@ export interface paths {
                   | "database_unavailable"
                   | "upstream_rpc_unavailable"
                   | "provider_timeout"
+                  | "provider_outcome_unknown"
                   | "chain_rpc_not_configured"
                   | "invalid_from_address"
                   | "too_many_recipients"
@@ -4928,6 +4929,7 @@ export interface paths {
                   | "database_unavailable"
                   | "upstream_rpc_unavailable"
                   | "provider_timeout"
+                  | "provider_outcome_unknown"
                   | "chain_rpc_not_configured"
                   | "invalid_from_address"
                   | "too_many_recipients"
@@ -5000,16 +5002,12 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | (components["schemas"]["Error"] & {
-                  details?: components["schemas"]["FeeDestinationMissingDetails"];
-                })
-              | (components["schemas"]["Error"] & {
-                  details?: components["schemas"]["LightningInvoiceInUseDetails"];
-                })
-              | (components["schemas"]["Error"] & {
-                  details?: components["schemas"]["LightningFeesUnsignedDetails"];
-                });
+            "application/json": components["schemas"]["Error"] & {
+              details?:
+                | components["schemas"]["FeeDestinationMissingDetails"]
+                | components["schemas"]["LightningInvoiceInUseDetails"]
+                | components["schemas"]["LightningFeesUnsignedDetails"];
+            };
           };
         };
         422: {
@@ -5026,14 +5024,6 @@ export interface paths {
           };
         };
         500: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Error"];
-          };
-        };
-        502: {
           headers: {
             [name: string]: unknown;
           };
@@ -5227,6 +5217,7 @@ export interface paths {
                   | "database_unavailable"
                   | "upstream_rpc_unavailable"
                   | "provider_timeout"
+                  | "provider_outcome_unknown"
                   | "chain_rpc_not_configured"
                   | "invalid_from_address"
                   | "too_many_recipients"
@@ -5533,6 +5524,7 @@ export interface paths {
                   | "database_unavailable"
                   | "upstream_rpc_unavailable"
                   | "provider_timeout"
+                  | "provider_outcome_unknown"
                   | "chain_rpc_not_configured"
                   | "invalid_from_address"
                   | "too_many_recipients"
@@ -5802,6 +5794,7 @@ export interface paths {
                   | "database_unavailable"
                   | "upstream_rpc_unavailable"
                   | "provider_timeout"
+                  | "provider_outcome_unknown"
                   | "chain_rpc_not_configured"
                   | "invalid_from_address"
                   | "too_many_recipients"
@@ -5906,7 +5899,7 @@ export interface paths {
             "application/json": components["schemas"]["Error"];
           };
         };
-        502: {
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -6042,14 +6035,6 @@ export interface paths {
               fundingMemo: string | null;
               fundingTransaction: string;
               refundAddress: string;
-              signingRequests: {
-                id: string;
-                method: "stampedRequest";
-                body: string;
-                signer: string;
-                transaction: string;
-                token: string;
-              }[];
               token: string;
               expiresAt: string;
               createdAt: string;
@@ -6061,24 +6046,19 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | (components["schemas"]["Error"] & {
-                  details?: {
+            "application/json": components["schemas"]["Error"] & {
+              details?:
+                | {
                     field: "amount";
                     minimumAmount: string;
                     detail: string;
-                  };
-                })
-              | (components["schemas"]["Error"] & {
-                  details?: {
+                  }
+                | {
                     field: "amount";
                     maximumAmount?: string;
                     detail: string;
                   };
-                })
-              | components["schemas"]["Error"];
+            };
           };
         };
         401: {
@@ -6104,7 +6084,7 @@ export interface paths {
           content: {
             "application/json": components["schemas"]["Error"] & {
               details?: {
-                field?: "refundAddress";
+                field?: "refundAddress" | "senderAddress";
                 detail: string;
               };
             };
@@ -6119,14 +6099,6 @@ export interface paths {
           };
         };
         501: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": components["schemas"]["Error"];
-          };
-        };
-        502: {
           headers: {
             [name: string]: unknown;
           };
@@ -6213,14 +6185,6 @@ export interface paths {
               fundingMemo: string | null;
               fundingTransaction: string;
               refundAddress: string;
-              signingRequests: {
-                id: string;
-                method: "stampedRequest";
-                body: string;
-                signer: string;
-                transaction: string;
-                token: string;
-              }[];
               token: string;
               expiresAt: string;
               createdAt: string;
@@ -6593,11 +6557,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"];
+            "application/json": components["schemas"]["Error"];
           };
         };
         401: {
@@ -6613,10 +6573,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"];
+            "application/json": components["schemas"]["Error"];
           };
         };
         404: {
@@ -6632,11 +6589,15 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"];
+            "application/json": components["schemas"]["Error"];
+          };
+        };
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Error"];
           };
         };
         500: {
@@ -6655,7 +6616,7 @@ export interface paths {
             "application/json": components["schemas"]["Error"];
           };
         };
-        502: {
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -6871,11 +6832,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"];
+            "application/json": components["schemas"]["Error"];
           };
         };
         401: {
@@ -6891,10 +6848,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"];
+            "application/json": components["schemas"]["Error"];
           };
         };
         404: {
@@ -6910,11 +6864,15 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/json":
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"]
-              | components["schemas"]["Error"];
+            "application/json": components["schemas"]["Error"];
+          };
+        };
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Error"];
           };
         };
         500: {
@@ -6933,7 +6891,7 @@ export interface paths {
             "application/json": components["schemas"]["Error"];
           };
         };
-        502: {
+        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -6973,7 +6931,39 @@ export interface paths {
             "application/json": {
               minAmountUsd: string;
               maxAmountUsd: string;
-              pairs: {
+              sell: {
+                chain:
+                  | "ethereum"
+                  | "polygon"
+                  | "base"
+                  | "solana"
+                  | "bitcoin"
+                  | "litecoin"
+                  | "bitcoin-cash"
+                  | "dogecoin"
+                  | "zcash"
+                  | "tron"
+                  | "xrpl"
+                  | "lightning";
+                assets: string[];
+              }[];
+              buy: {
+                chain:
+                  | "ethereum"
+                  | "polygon"
+                  | "base"
+                  | "solana"
+                  | "bitcoin"
+                  | "litecoin"
+                  | "bitcoin-cash"
+                  | "dogecoin"
+                  | "zcash"
+                  | "tron"
+                  | "xrpl"
+                  | "lightning";
+                assets: string[];
+              }[];
+              excludedPairs: {
                 sellChain:
                   | "ethereum"
                   | "polygon"
@@ -10283,6 +10273,7 @@ export interface components {
         | "database_unavailable"
         | "upstream_rpc_unavailable"
         | "provider_timeout"
+        | "provider_outcome_unknown"
         | "chain_rpc_not_configured"
         | "invalid_from_address"
         | "too_many_recipients"
