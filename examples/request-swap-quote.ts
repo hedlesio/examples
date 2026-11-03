@@ -79,7 +79,10 @@ await runExample(async () => {
 
   printJson(quote);
   console.error(
-    `\nSign the quote's fundingTransaction with the wallet that controls ${options.senderAddress}, then accept before ${quote.expiresAt}:\n` +
-      `  bun run swap-accept --quote-id ${quote.id} --token <token> --signature <signed funding transaction>`,
+    `\nAccept before ${quote.expiresAt}. The quote reserves nothing until then.\n` +
+      `- Hedles wallet: Hedles builds the funding and you sign its requests:\n` +
+      `    bun run swap-sign --quote-id ${quote.id} --token <token>\n` +
+      `- Wallet you control: sign the quote's fundingTransaction, then:\n` +
+      `    bun run swap-accept --quote-id ${quote.id} --token <token> --signature <signed funding transaction>`,
   );
 });

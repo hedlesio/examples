@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { obtainSession } from "../src/auth.ts";
+import { rm, stat } from "node:fs/promises";
+import { cachedSessionToken, obtainSession } from "../src/auth.ts";
 import type { BearerSessionResponse, SignedIdentityRequest, Stamper } from "../src/types.ts";
 
 const response: BearerSessionResponse = {
@@ -82,4 +83,52 @@ test("rejects a browser-only session response in the bearer-token helper", async
     },
   };
   await expect(obtainSession(api, stamper)).rejects.toThrow("bearer session token");
+});
+
+describe("cachedSessionToken", () => {
+  const cachePath = () => `${Bun.env.TMPDIR ?? "/tmp"}/hedles-session-${crypto.randomUUID()}.json`;
+  const login = (session: string, calls?: string[]) => async () => {
+    calls?.push(session);
+    return { ...response, session, expiresIn: 3600 };
+  };
+
+  test("shares one session between commands until shortly before it expires", async () => {
+    const path = cachePath();
+    const start = Date.now();
+    expect(await cachedSessionToken(path, "ctx", login("first"), () => start)).toBe("first");
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
+    expect(await cachedSessionToken(path, "ctx", login("second"), () => start + 30 * 60_000)).toBe("first");
+    expect(await cachedSessionToken(path, "ctx", login("third"), () => start + 56 * 60_000)).toBe("third");
+    await rm(path);
+  });
+
+  test("a session issued for another API, organization or key is not reused", async () => {
+    const path = cachePath();
+    expect(await cachedSessionToken(path, "ctx-a", login("a"))).toBe("a");
+    expect(await cachedSessionToken(path, "ctx-b", login("b"))).toBe("b");
+    await rm(path);
+  });
+
+  test("commands started together log in once", async () => {
+    const path = cachePath();
+    const calls: string[] = [];
+    const slowLogin = async () => {
+      calls.push("login");
+      await Bun.sleep(50);
+      return { ...response, session: "shared", expiresIn: 3600 };
+    };
+    const sessions = await Promise.all(
+      Array.from({ length: 5 }, () => cachedSessionToken(path, "ctx", slowLogin)),
+    );
+    expect(sessions).toEqual(Array(5).fill("shared"));
+    expect(calls).toEqual(["login"]);
+    await rm(path);
+  });
+
+  test("logs in again when the cache file is unreadable", async () => {
+    const path = cachePath();
+    await Bun.write(path, "not json");
+    expect(await cachedSessionToken(path, "ctx", login("fresh"))).toBe("fresh");
+    await rm(path);
+  });
 });
