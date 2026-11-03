@@ -34,7 +34,6 @@ function quote(overrides: Partial<SwapQuoteResponse> = {}): SwapQuoteResponse {
     refundAddress: "bc1qsender",
     fundingMemo: null,
     fundingTransaction: "",
-    signingRequests: [],
     token: "quote-token",
     expiresAt: new Date(Date.now() + 600_000).toISOString(),
     createdAt: new Date().toISOString(),

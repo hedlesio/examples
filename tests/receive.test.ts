@@ -93,7 +93,9 @@ describe("waitForPayin", () => {
     const clock: Poll = {
       intervalMs: 10,
       timeoutMs: 25,
-      sleep: async (ms) => void (now += ms),
+      sleep: async (ms) => {
+        now += ms;
+      },
       now: () => now,
     };
     await expect(waitForPayin(api, "payin-1", clock)).rejects.toThrow("timed out");
