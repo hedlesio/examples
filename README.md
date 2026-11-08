@@ -109,9 +109,7 @@ bun run payin \
   --reference invoice-123
 ```
 
-`--reference` is optional; `--expires-in` defaults to 3600 seconds. The response includes a
-`classification` (`matched`, `pending`, or `expired`) telling you whether the observed funds matched an
-active payment request.
+`--reference` is optional; `--expires-in` defaults to 3600 seconds. Read `status`, `amount`, and `expectedAmount` to follow payment progress.
 
 ### Create and sign a payout
 
@@ -207,15 +205,15 @@ Cash, repeat `--additional-sender <address>` to fund one swap from several addre
 
 When `--sender-address` is a Hedles wallet, the quote returns `signingRequests` instead of a transaction for
 you to sign: Hedles funds the swap with its own payout (carrying any venue memo). Stamp and submit them with
-`bun run swap-sign --quote-id <id> --token <token>`. If an additional sender is an address Hedles does not
+`bun run swap-sign --quote-id <id>`. If an additional sender is an address Hedles does not
 control, sign its inputs on the funding payout with `signedPsbt` (see the payout section) before stamping.
 
 Supported directed pairs are `DOGE`, `LTC`, and `ZEC` into `BTC` or `USDT` (Ethereum), and `BTC` into
 `USDT`. Zcash is transparent-address only, and route availability is dynamic.
 
-The quote returns firm terms (`sellAmount`, `quotedBuyAmount`, `minimumBuyAmount`, `quotedRate`), the
+The quote returns firm terms (`sellAmount`, `quotedBuyAmount`, `minimumBuyAmount`), the
 `venueFundingAddress` (plus `fundingMemo` where the chain needs one), an unsigned `fundingTransaction`
-already built to pay it (a PSBT for UTXO sell chains), a binding `token`, and an `expiresAt` deadline.
+already built to pay it (a PSBT for UTXO sell chains), and an `expiresAt` deadline.
 `--side buy`, which fixes the bought leg instead, currently answers `501 not_implemented` — fix the sold
 leg. Swap routing covers mainnet pairs; a pair the venue cannot route (including testnet chains) is
 rejected with `400 swap_pair_not_supported`.
@@ -240,7 +238,7 @@ post the signed PSBT yourself:
 
 ```sh
 bun run swap-accept \
-  --quote-id <id> --token <token> \
+  --quote-id <id> \
   --signature <signed funding transaction>
 ```
 

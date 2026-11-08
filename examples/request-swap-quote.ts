@@ -81,8 +81,8 @@ await runExample(async () => {
   console.error(
     `\nAccept before ${quote.expiresAt}. The quote reserves nothing until then.\n` +
       `- Hedles wallet: Hedles builds the funding and you sign its requests:\n` +
-      `    bun run swap-sign --quote-id ${quote.id} --token <token>\n` +
+      `    bun run swap-sign --quote-id ${quote.id}\n` +
       `- Wallet you control: sign the quote's fundingTransaction, then:\n` +
-      `    bun run swap-accept --quote-id ${quote.id} --token <token> --signature <signed funding transaction>`,
+      `    bun run swap-accept --quote-id ${quote.id} --signature <signed funding transaction>`,
   );
 });

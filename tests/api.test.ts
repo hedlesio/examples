@@ -38,7 +38,6 @@ beforeAll(() => {
             amount: null,
             txHash: null,
             confirmations: 0,
-            classification: "matched",
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
@@ -64,12 +63,10 @@ beforeAll(() => {
             sellAmount: "1000",
             quotedBuyAmount: "990",
             minimumBuyAmount: "980",
-            quotedRate: "0.99",
             venueFundingAddress: "venue-address",
             fundingMemo: null,
             fundingTransaction: "unsigned-funding-psbt",
             signingRequests: [],
-            token: "quote-token",
             expiresAt: "2026-07-30T01:00:00.000Z",
             createdAt: "2026-07-30T00:00:00.000Z",
           });
@@ -89,7 +86,6 @@ beforeAll(() => {
             sellAmount: "1000",
             quotedBuyAmount: "990",
             minimumBuyAmount: "980",
-            quotedRate: "0.99",
             venueFundingAddress: "venue-address",
             fundingTxHash: "funding-txid",
             failureReason: null,
@@ -128,7 +124,7 @@ describe("HedlesApi", () => {
     });
 
     expect(result.id).toBe("payin-1");
-    expect(result.classification).toBe("matched");
+    expect(result).not.toHaveProperty("classification");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
       chain: "base",
@@ -155,7 +151,7 @@ describe("HedlesApi", () => {
 
     expect(quote.status).toBe("quoted");
     expect(quote.fundingTransaction).toBe("unsigned-funding-psbt");
-    expect(quote.token).toBe("quote-token");
+    expect(quote).not.toHaveProperty("token");
     expect(lastAuthorization).toBe("Bearer hp_sess_test");
     expect(lastBody).toEqual({
       sellChain: "bitcoin",
@@ -172,7 +168,6 @@ describe("HedlesApi", () => {
   test("accepts a swap quote with the signed funding transaction", async () => {
     const swap = await api.acceptSwapQuote({
       quoteId: "11111111-1111-4111-8111-111111111111",
-      token: "quote-token",
       signature: "signed-funding-psbt",
     });
 
@@ -180,7 +175,6 @@ describe("HedlesApi", () => {
     expect(swap.fundingTxHash).toBe("funding-txid");
     expect(lastBody).toEqual({
       quoteId: "11111111-1111-4111-8111-111111111111",
-      token: "quote-token",
       signature: "signed-funding-psbt",
     });
   });
@@ -192,7 +186,7 @@ test("serializes typed pagination and scope options instead of offset", async ()
     port: 0,
     fetch(request) {
       received = new URL(request.url).search;
-      return Response.json({ items: [], page: 2, limit: 5, total: 0, totalPages: 0, hasMore: false });
+      return Response.json({ items: [], page: 2, limit: 5, total: 0, hasMore: false });
     },
   });
   try {
@@ -222,9 +216,8 @@ test("prepares swap signing without claiming an executed swap response", async (
   try {
     const result = await new HedlesApi(`http://127.0.0.1:${signingServer.port}`).acceptSwapQuote({
       quoteId: "quote-id",
-      token: "quote-token",
     });
-    expect(received).toEqual({ quoteId: "quote-id", token: "quote-token" });
+    expect(received).toEqual({ quoteId: "quote-id" });
     expect(result).toEqual({ id: "quote-id", signingRequests: [] });
   } finally {
     signingServer.stop(true);

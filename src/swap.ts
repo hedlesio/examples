@@ -119,7 +119,7 @@ export async function acceptQuote(
 ): Promise<ExecuteSwapResult> {
   assertQuoteAcceptable(quote);
   const signature = signFundingTransaction(quote.sellChain, quote.fundingTransaction, signer);
-  const swap = await api.acceptSwapQuote({ quoteId: quote.id, token: quote.token, signature });
+  const swap = await api.acceptSwapQuote({ quoteId: quote.id, signature });
   return { quote, signature, swap };
 }
 
@@ -127,7 +127,7 @@ type ManagedSwapApi = Pick<HedlesApi, "prepareSwapSigning" | "submitSwapSignatur
 
 // A Hedles wallet never signs the venue's transaction: Hedles funds the swap
 // with its own payout, and the quote's signingRequests are that payout's.
-// Stamp each body unchanged and return it with its quote-bound token. A first
+// Stamp each body unchanged and submit it with its request ID. A first
 // EVM payout takes two rounds (authorization, then transaction). A ZEC sell
 // funded from mining rewards takes two rounds with a pause between them while
 // Hedles proves its first transaction, and the swap only exists once Hedles
@@ -143,14 +143,13 @@ type ManagedSwapStep = SubmitSwapSignaturesResponse | SwapResponse;
 export async function signManagedSwap(
   api: ManagedSwapApi,
   quoteId: string,
-  token: string,
   stamper: Stamper,
   wait: RoundWait = MANAGED_SWAP_WAIT,
 ): Promise<ManagedSwapStep> {
-  let pending: ManagedSwapStep = await api.prepareSwapSigning({ quoteId, token });
+  let pending: ManagedSwapStep = await api.prepareSwapSigning({ quoteId });
   for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
     if (!("signingRequests" in pending)) return pending;
-    if (pending.signingRequests.length === 0) pending = await waitForSwapStep(api, quoteId, token, wait);
+    if (pending.signingRequests.length === 0) pending = await waitForSwapStep(api, quoteId, wait);
     if (!("signingRequests" in pending)) return pending;
     const stamped: SignedSwapActivity[] = await Promise.all(
       pending.signingRequests.map(async (request) => {
@@ -159,7 +158,6 @@ export async function signManagedSwap(
           id: request.id,
           method: request.method,
           body: request.body,
-          token: request.token,
           stamp: { name: stamp.stampHeaderName, value: stamp.stampHeaderValue },
         };
       }),
@@ -167,17 +165,16 @@ export async function signManagedSwap(
     pending = await api.submitSwapSignatures(quoteId, stamped);
   }
   if ("signingRequests" in pending && pending.signingRequests.length === 0) {
-    return waitForSwapStep(api, quoteId, token, wait);
+    return waitForSwapStep(api, quoteId, wait);
   }
   throw new Error(`quote ${quoteId} still needs signatures after ${MAX_SIGNING_ROUNDS} rounds`);
 }
 
 // The swap is accepted once its funding is sent; until then GET /v1/swaps/:id
-// answers 404 and posting {quoteId, token} again returns the current round.
+// answers 404 and posting {quoteId} again returns the current round.
 async function waitForSwapStep(
   api: ManagedSwapApi,
   quoteId: string,
-  token: string,
   wait: RoundWait,
 ): Promise<ManagedSwapStep> {
   const sleep = wait.sleep ?? Bun.sleep;
@@ -190,7 +187,7 @@ async function waitForSwapStep(
     } catch (err) {
       if (!(err instanceof HedlesApiError) || err.status !== 404) throw err;
     }
-    const next = await api.prepareSwapSigning({ quoteId, token });
+    const next = await api.prepareSwapSigning({ quoteId });
     if (!("signingRequests" in next) || next.signingRequests.length > 0) return next;
     if (now() >= deadline)
       throw new Error(`quote ${quoteId} has no next signing round and no accepted swap yet`);

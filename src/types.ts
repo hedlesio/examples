@@ -25,7 +25,6 @@ export type AddressListOptions = NonNullable<paths["/v1/addresses"]["get"]["para
 export type AddressPage = Json<paths["/v1/addresses"]["get"]["responses"][200]>;
 export type CreatePayinInput = Json<paths["/v1/payins"]["post"]["requestBody"]>;
 export type PayinResponse = Json<paths["/v1/payins"]["post"]["responses"][201]>;
-export type PayinClassification = PayinResponse["classification"];
 export type PayinStatus = PayinResponse["status"];
 export type CreatePayoutInput = Json<paths["/v1/payouts"]["post"]["requestBody"]>;
 export type OnChainPayoutInput = Extract<CreatePayoutInput, { transfers: unknown }>;
