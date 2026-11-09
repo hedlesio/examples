@@ -3576,7 +3576,6 @@ export interface paths {
             request?: {
               id: string;
               body: string;
-              token: string;
               stamp: {
                 name: string;
                 value: string;
@@ -3596,7 +3595,6 @@ export interface paths {
                   request: {
                     id: string;
                     body: string;
-                    token: string;
                   };
                 }
               | {
