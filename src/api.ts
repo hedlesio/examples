@@ -1,6 +1,8 @@
 import type {
   AcceptSwapQuoteInput,
   AcceptSwapQuoteResponse,
+  AddressBalanceOptions,
+  AddressBalanceResponse,
   AddressEntry,
   AddressListOptions,
   AddressPage,
@@ -109,6 +111,10 @@ export class HedlesApi {
 
   listAddresses(options: AddressListOptions = {}): Promise<AddressPage> {
     return this.request(`/v1/addresses${queryString(options)}`);
+  }
+
+  getAddressBalance(addressId: string, options: AddressBalanceOptions = {}): Promise<AddressBalanceResponse> {
+    return this.request(`/v1/addresses/${encodeURIComponent(addressId)}/balance${queryString(options)}`);
   }
 
   getPayin(payinId: string): Promise<PayinResponse> {

@@ -2,6 +2,8 @@ import { CHAINS } from "../src/api-values.ts";
 import { authenticatedOptions, choice, parseCommand, positiveInteger } from "../src/cli.ts";
 import { authenticatedApi, printJson, runExample } from "../src/runtime.ts";
 
+const DEFAULT_EXPIRES_IN_SECONDS = 3600;
+
 await runExample(async () => {
   const options = parseCommand({
     name: "payin",
@@ -28,22 +30,25 @@ await runExample(async () => {
         valueName: "reference",
       },
       expiresIn: {
-        description: "Expiry in seconds",
+        description:
+          "Expiry in seconds (default: 3600; not accepted for lightning, whose invoices last 30 days)",
         valueName: "seconds",
-        defaultValue: "3600",
       },
     },
   });
   if (!options) return;
 
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
-  const expiresIn = positiveInteger(options.expiresIn, "--expires-in");
+  const chain = choice(options.chain, "--chain", CHAINS);
+  let expiresIn: number | undefined;
+  if (options.expiresIn !== undefined) expiresIn = positiveInteger(options.expiresIn, "--expires-in");
+  else if (chain !== "lightning") expiresIn = DEFAULT_EXPIRES_IN_SECONDS;
   const payin = await api.createPayin({
-    chain: choice(options.chain, "--chain", CHAINS),
+    chain,
     asset: options.asset,
     amount: options.amount,
     ...(options.reference ? { reference: options.reference } : {}),
-    expiresIn,
+    ...(expiresIn === undefined ? {} : { expiresIn }),
   });
   printJson(payin);
 });
