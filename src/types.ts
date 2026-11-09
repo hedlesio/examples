@@ -23,6 +23,10 @@ export type ClaimResponse = Json<paths["/v1/tenants/{id}/claim/complete"]["post"
 export type AddressEntry = Json<paths["/v1/addresses"]["post"]["responses"][201]>;
 export type AddressListOptions = NonNullable<paths["/v1/addresses"]["get"]["parameters"]["query"]>;
 export type AddressPage = Json<paths["/v1/addresses"]["get"]["responses"][200]>;
+export type AddressBalanceOptions = NonNullable<
+  paths["/v1/addresses/{id}/balance"]["get"]["parameters"]["query"]
+>;
+export type AddressBalanceResponse = Json<paths["/v1/addresses/{id}/balance"]["get"]["responses"][200]>;
 export type CreatePayinInput = Json<paths["/v1/payins"]["post"]["requestBody"]>;
 export type PayinResponse = Json<paths["/v1/payins"]["post"]["responses"][201]>;
 export type PayinClassification = PayinResponse["classification"];

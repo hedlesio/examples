@@ -360,6 +360,24 @@ describe("Bun example commands", () => {
     });
   });
 
+  test("payin sends no expiry for lightning, whose invoices always last 30 days", async () => {
+    await run(
+      "payin",
+      [
+        "--api-url",
+        `http://127.0.0.1:${server.port}`,
+        "--chain",
+        "lightning",
+        "--asset",
+        "BTC",
+        "--amount",
+        "1000",
+      ],
+      testEnvironment(),
+    );
+    expect(payinBody).toEqual({ chain: "lightning", asset: "BTC", amount: "1000" });
+  });
+
   test("payout multisend sends ordered transfers", async () => {
     payoutBodies = [];
     const result = (await run(

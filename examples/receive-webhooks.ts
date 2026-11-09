@@ -22,9 +22,9 @@ function describe(event: WebhookEvent): string {
     case "payin.pending":
       return `payin ${event.data.payinId} seen in ${event.data.txHash} for ${event.data.amount}`;
     case "payin.confirmed":
-      return "blockNumber" in event.data
-        ? `payin ${event.data.payinId} confirmed at block ${event.data.blockNumber}`
-        : `payin ${event.data.payinId} confirmed`;
+      return "paymentHash" in event.data
+        ? `payin ${event.data.payinId} invoice ${event.data.paymentHash} paid ${event.data.amount} sats`
+        : `payin ${event.data.payinId} confirmed at block ${event.data.blockNumber}`;
     case "payin.expired":
       return `payin ${event.data.payinId} expired unpaid`;
     case "payout.created":

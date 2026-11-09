@@ -145,6 +145,47 @@ first-use EVM authorization followed by transaction signing. Payout signing does
 empty. The command drives this loop for you. Recipient and fee movements come back as flat `transfers`
 rows; a settled payout means the transaction settled, so inspect each transfer's own status.
 
+### Lightning
+
+Lightning moves BTC by BOLT11 invoice through your tenant's Spark wallet: `chain: "lightning"`, `asset: "BTC"`,
+amounts in whole satoshis. There are no addresses to pay and no on-chain deposits or withdrawals. Hedles sets
+the wallet up for your organization; until then every Lightning call answers `403 lightning_not_enabled`.
+Development runs on Lightspark's hosted Spark regtest (invoices start `lnbcrt`), production on mainnet (`lnbc`).
+
+```sh
+bun run lightning-balance
+bun run lightning-receive --amount 1000 --reference order-123
+bun run lightning-receive --amount 1000 --wait 300
+bun run lightning-pay --invoice lnbcrt10u1p... --reference withdrawal-7
+bun run lightning-pay --payout-id <id>
+```
+
+- `lightning-receive` creates a pay-in and prints its `invoice` and an uppercase `lightning:` URI for a QR
+  code. Invoices always expire after 30 days, and cancelling the pay-in does not revoke one: a late payment
+  still confirms it. `--wait` polls until `payin.confirmed`, which normally takes under 20 seconds.
+- `lightning-pay` pays an invoice and waits for `settled` or `failed`. A self-custody wallet signs one round
+  per payment (the invoice, then each fee, sometimes a swap round first that makes exact change); the
+  command stamps each round as it arrives and re-reads a round older than 10 minutes, which answers
+  `409 lightning_approval_expired`. Fees are separate payments after the invoice. While a paid payout still
+  has unsigned fee rounds, new payouts answer `409 lightning_fees_unsigned`; the command names them, and
+  `--payout-id` finishes signing one.
+- `lightning-balance` shows the Spark wallet and its spendable sats.
+- `bun run payin --chain lightning --asset BTC --amount 1000` works too and sends no `expiresIn`.
+
+**Testing on regtest.** A regtest invoice can only be paid from another Spark regtest wallet, so the easiest
+test is two development tenants paying each other. Put the second tenant's key pair in
+`HEDLES_PAYER_API_PUBLIC_KEY` and `HEDLES_PAYER_API_PRIVATE_KEY`, and fund its wallet: run `lightning-balance`
+with that key pair as `HEDLES_API_*` and send regtest sats from the
+[Lightspark regtest faucet](https://app.lightspark.com/regtest-faucet) to the `sparkAddress` it prints. Then
+run:
+
+```sh
+bun run lightning-roundtrip --amount 1000
+```
+
+It issues an invoice on the first tenant, pays it from the second, signs any rounds, and prints both sides
+once the pay-in confirms. Point `--api-url` at a local gateway to run the same flow against it.
+
 ### Receive and verify webhooks
 
 ```sh
