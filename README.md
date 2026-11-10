@@ -145,11 +145,12 @@ first-use EVM authorization followed by transaction signing. Payout signing does
 empty. The command drives this loop for you. Recipient and fee movements come back as flat `transfers`
 rows; a settled payout means the transaction settled, so inspect each transfer's own status.
 
-A signatures submission can answer `409 payout_source_busy` with `details.retryable: true` while the
-source wallet has an unconfirmed transaction or an earlier payout of the same wallet is still unsigned.
-Nothing was approved; resubmit the identical stamped items later, without stamping again. The same
-answer after a node refused the signed transaction means Hedles kept those bytes, and the identical
-resubmission sends them again without another approval. The command retries with backoff for up to ten
+A signatures submission can answer `409 payout_source_busy` with `details.retryable: true` in two
+cases. Before approval, while the source wallet has an unconfirmed transaction or an earlier payout of
+the same wallet is still unsent, nothing was approved yet. After approval, when another payout of the
+same wallet wins the broadcast or the node refuses a delegated account's nonce gap, Hedles keeps the
+signed transaction. Either way, resubmit the identical stamped items later, without stamping again; in
+the second case Hedles sends the bytes it kept, without another approval. The command retries with backoff for up to ten
 minutes, well inside the payout's one-hour signing window. `409 broadcast_failed` saying the payout's
 message changed means it was rebuilt after you signed: read it and sign its new requests.
 

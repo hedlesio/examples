@@ -25,9 +25,11 @@ export interface BusyRetry {
   now?: () => number;
 }
 
-// A source with an unconfirmed transaction, or a lower nonce still unsent,
-// answers 409 payout_source_busy before any approval. Ten minutes stays well
-// inside the payout's one-hour signing window.
+// 409 payout_source_busy comes before approval while the source has an
+// unconfirmed transaction or a lower nonce still unsent, and after approval when
+// another payout wins the broadcast claim or the node refuses a delegated
+// account's nonce gap; Hedles then keeps the signed bytes for the resubmission.
+// Ten minutes stays well inside the payout's one-hour signing window.
 export const DEFAULT_BUSY_RETRY: BusyRetry = {
   initialDelayMs: 5_000,
   maxDelayMs: 60_000,
