@@ -1,5 +1,5 @@
 import { bitgo } from "@bitgo/utxo-lib";
-import type { HedlesApi } from "./api.ts";
+import { type HedlesApi, HedlesApiError } from "./api.ts";
 import { stampActivities } from "./signing.ts";
 import { fundingNetwork, utxoKeyPair } from "./swap.ts";
 import type { CreatePayoutResponse, PayoutResponse, SignedActivity, Stamper } from "./types.ts";
@@ -16,6 +16,23 @@ export interface RoundWait {
 // A Zcash payout spending mining rewards returns an empty round while Hedles
 // proves its first transaction (usually 15–30 s), then the next round on a read.
 export const DEFAULT_ROUND_WAIT: RoundWait = { intervalMs: 5_000, timeoutMs: 10 * 60_000 };
+
+export interface BusyRetry {
+  initialDelayMs: number;
+  maxDelayMs: number;
+  timeoutMs: number;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+}
+
+// A source with an unconfirmed transaction, or a lower nonce still unsent,
+// answers 409 payout_source_busy before any approval. Ten minutes stays well
+// inside the payout's one-hour signing window.
+export const DEFAULT_BUSY_RETRY: BusyRetry = {
+  initialDelayMs: 5_000,
+  maxDelayMs: 60_000,
+  timeoutMs: 10 * 60_000,
+};
 
 // Two rounds cover the deepest published flow (EIP-7702 authorization, then the
 // resulting transaction); one extra round absorbs a future additional request.
@@ -50,6 +67,7 @@ export async function completePayoutSigning(
   stamper: Stamper,
   externalKeys: readonly string[] = [],
   wait: RoundWait = DEFAULT_ROUND_WAIT,
+  busy: BusyRetry = DEFAULT_BUSY_RETRY,
 ): Promise<PayoutResponse> {
   let response = created;
 
@@ -67,10 +85,66 @@ export async function completePayoutSigning(
         body: signExternalInputs(response.chain, first.transaction, externalKeys),
       });
     }
-    response = await api.submitPayoutSignatures(response.id, stamped);
+    response = await submitWhileBusy(api, response.id, stamped, busy);
   }
 
   throw new Error(`Payout still requires signatures after ${MAX_SIGNING_ROUNDS} signing rounds`);
+}
+
+// The identical stamped items are resubmitted, never re-stamped: Hedles matches
+// them against the payout's signing window, and after a node refusal it resends
+// the transaction it already holds instead of asking for another approval.
+async function submitWhileBusy(
+  api: PayoutSigningApi,
+  payoutId: string,
+  stamped: SignedActivity[],
+  busy: BusyRetry,
+): Promise<PayoutResponse> {
+  const sleep = busy.sleep ?? Bun.sleep;
+  const now = busy.now ?? Date.now;
+  const deadline = now() + busy.timeoutMs;
+  let delay = busy.initialDelayMs;
+  for (;;) {
+    try {
+      return await api.submitPayoutSignatures(payoutId, stamped);
+    } catch (err) {
+      if (messageChanged(err)) {
+        throw new Error(
+          `payout ${payoutId} was rebuilt after it was signed; read the payout and sign it again`,
+          {
+            cause: err,
+          },
+        );
+      }
+      if (!retryableBusy(err) || now() + delay > deadline) throw err;
+    }
+    await sleep(delay);
+    delay = Math.min(delay * 2, busy.maxDelayMs);
+  }
+}
+
+function conflict(err: unknown): { code: string | undefined; details: Record<string, unknown> } | null {
+  if (!(err instanceof HedlesApiError) || err.status !== 409) return null;
+  if (typeof err.body !== "object" || err.body === null) return null;
+  const { details } = err.body;
+  return {
+    code: err.body.code,
+    details:
+      typeof details === "object" && details !== null ? Object.fromEntries(Object.entries(details)) : {},
+  };
+}
+
+function retryableBusy(err: unknown): boolean {
+  const body = conflict(err);
+  return body?.code === "payout_source_busy" && body.details.retryable === true;
+}
+
+function messageChanged(err: unknown): boolean {
+  const body = conflict(err);
+  const detail = body?.details.detail;
+  return (
+    body?.code === "broadcast_failed" && typeof detail === "string" && detail.includes("message changed")
+  );
 }
 
 async function waitForNextRound(
