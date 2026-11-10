@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { bitgo, ECPair, payments } from "@bitgo/utxo-lib";
+import { HedlesApiError } from "../src/api.ts";
 import { completePayoutSigning, signExternalInputs } from "../src/payout.ts";
 import { fundingNetwork } from "../src/swap.ts";
 import type { PayoutResponse, SignedActivity, SigningRequest, Stamper } from "../src/types.ts";
@@ -175,6 +176,131 @@ describe("completePayoutSigning", () => {
     expect(
       completePayoutSigning(api, payout([signingRequest("round-0", "body-0")]), stamper),
     ).rejects.toThrow("still requires signatures");
+  });
+});
+
+describe("a busy payout source", () => {
+  const busy = new HedlesApiError(409, {
+    code: "payout_source_busy",
+    details: { chain: "base", retryable: true },
+  });
+
+  function busyClock() {
+    const sleeps: number[] = [];
+    let now = 0;
+    return {
+      sleeps,
+      retry: {
+        initialDelayMs: 5,
+        maxDelayMs: 20,
+        timeoutMs: 100,
+        sleep: async (ms: number) => {
+          sleeps.push(ms);
+          now += ms;
+        },
+        now: () => now,
+      },
+    };
+  }
+
+  test("resubmits the identical stamped items with backoff until the source is free", async () => {
+    const submissions: SignedActivity[][] = [];
+    const api = {
+      getPayout: unexpectedRead,
+      async submitPayoutSignatures(_id: string, items: SignedActivity[]) {
+        submissions.push(items);
+        if (submissions.length < 4) throw busy;
+        return payout([]);
+      },
+    };
+    const { sleeps, retry } = busyClock();
+
+    const result = await completePayoutSigning(
+      api,
+      payout([signingRequest("round-0", firstBody)]),
+      stamper,
+      [],
+      instantWait,
+      retry,
+    );
+
+    expect(result.status).toBe("broadcast");
+    expect(submissions).toHaveLength(4);
+    expect(new Set(submissions).size).toBe(1);
+    expect(sleeps).toEqual([5, 10, 20]);
+  });
+
+  test("gives up with the conflict once the retry window is spent", async () => {
+    let submissions = 0;
+    const api = {
+      getPayout: unexpectedRead,
+      async submitPayoutSignatures(): Promise<PayoutResponse> {
+        submissions += 1;
+        throw busy;
+      },
+    };
+    const { retry } = busyClock();
+
+    await expect(
+      completePayoutSigning(
+        api,
+        payout([signingRequest("round-0", firstBody)]),
+        stamper,
+        [],
+        instantWait,
+        retry,
+      ),
+    ).rejects.toBe(busy);
+    expect(submissions).toBe(7);
+  });
+
+  test("does not retry a conflict that is not retryable", async () => {
+    const other = new HedlesApiError(409, { code: "payout_source_busy", details: { chain: "base" } });
+    let submissions = 0;
+    const api = {
+      getPayout: unexpectedRead,
+      async submitPayoutSignatures(): Promise<PayoutResponse> {
+        submissions += 1;
+        throw other;
+      },
+    };
+
+    await expect(
+      completePayoutSigning(
+        api,
+        payout([signingRequest("round-0", firstBody)]),
+        stamper,
+        [],
+        instantWait,
+        busyClock().retry,
+      ),
+    ).rejects.toBe(other);
+    expect(submissions).toBe(1);
+  });
+
+  test("asks for a fresh signature when the payout was rebuilt after signing", async () => {
+    const api = {
+      getPayout: unexpectedRead,
+      async submitPayoutSignatures(): Promise<PayoutResponse> {
+        throw new HedlesApiError(409, {
+          code: "broadcast_failed",
+          details: {
+            detail: "the payout's message changed after it was signed; read the payout and sign again",
+          },
+        });
+      },
+    };
+
+    await expect(
+      completePayoutSigning(
+        api,
+        payout([signingRequest("round-0", firstBody)]),
+        stamper,
+        [],
+        instantWait,
+        busyClock().retry,
+      ),
+    ).rejects.toThrow("read the payout and sign it again");
   });
 });
 
