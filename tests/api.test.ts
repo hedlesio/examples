@@ -145,8 +145,8 @@ describe("HedlesApi", () => {
       buyAsset: "BUY",
       amount: "1000",
       side: "sell",
-      senderAddress: "seller-address",
-      recipientAddress: "buyer-address",
+      fromAddress: "seller-address",
+      toAddress: "buyer-address",
     });
 
     expect(quote.status).toBe("quoted");
@@ -160,8 +160,8 @@ describe("HedlesApi", () => {
       buyAsset: "BUY",
       amount: "1000",
       side: "sell",
-      senderAddress: "seller-address",
-      recipientAddress: "buyer-address",
+      fromAddress: "seller-address",
+      toAddress: "buyer-address",
     });
   });
 

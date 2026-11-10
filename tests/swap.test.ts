@@ -28,7 +28,9 @@ function quote(overrides: Partial<SwapQuoteResponse> = {}): SwapQuoteResponse {
     sellAmount: "90000",
     quotedBuyAmount: "8186526",
     minimumBuyAmount: "8104661",
-    additionalSenderAddresses: [],
+    fromAddress: "bc1qsender",
+    toAddress: "0x1111111111111111111111111111111111111111",
+    additionalFromAddresses: [],
     venueFundingAddress: "bc1qvenue",
     refundAddress: "bc1qsender",
     fundingMemo: null,
@@ -50,7 +52,9 @@ function swap(id: string): SwapResponse {
     sellAmount: "90000",
     quotedBuyAmount: "8186526",
     minimumBuyAmount: "8104661",
-    additionalSenderAddresses: [],
+    fromAddress: "bc1qsender",
+    toAddress: "0x1111111111111111111111111111111111111111",
+    additionalFromAddresses: [],
     venueFundingAddress: "bc1qvenue",
     fundingTxHash: "ab".repeat(32),
     fundingPayoutId: null,
@@ -147,8 +151,8 @@ describe("executeSwap", () => {
       buyAsset: "BTC",
       amount: "90000",
       side: "sell",
-      senderAddress: f.senderAddress,
-      recipientAddress: "bc1qrecipient",
+      fromAddress: f.senderAddress,
+      toAddress: "bc1qrecipient",
     };
 
     const result = await executeSwap(api, input, fundingSigner(f.senderWif, "dogecoin"));

@@ -52,7 +52,7 @@ function keyNetwork(network: Network): Network {
 }
 
 // Accepts the sender key as WIF or as 32-byte hex. The key must control the
-// quote's senderAddress; it never leaves the process.
+// quote's fromAddress; it never leaves the process.
 export function utxoKeyPair(secret: string, chain: string) {
   const network = keyNetwork(fundingNetwork(chain));
   const trimmed = secret.trim();

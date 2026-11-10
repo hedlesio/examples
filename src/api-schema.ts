@@ -2176,6 +2176,7 @@ export interface paths {
               kind?: "platform" | "merchant";
               parentTenantId?: string | null;
               name: string;
+              email: string | null;
               custodial: boolean;
               createdAt?: string;
             };
@@ -2720,10 +2721,12 @@ export interface paths {
           };
           content: {
             "application/json": {
-              code: "asset_already_exists" | "custom_asset_limit_reached";
-              details?: {
-                [key: string]: unknown;
-              };
+              code: "asset_already_exists" | "custom_asset_limit_reached" | "utxo_input_unavailable";
+              details?:
+                | components["schemas"]["UtxoInputUnavailableDetails"]
+                | {
+                    [key: string]: unknown;
+                  };
             };
           };
         };
@@ -3453,10 +3456,13 @@ export interface paths {
               code:
                 | "address_derivation_conflict"
                 | "platform_signing_forbidden"
-                | "tenant_organization_missing";
-              details?: {
-                [key: string]: unknown;
-              };
+                | "tenant_organization_missing"
+                | "utxo_input_unavailable";
+              details?:
+                | components["schemas"]["UtxoInputUnavailableDetails"]
+                | {
+                    [key: string]: unknown;
+                  };
             };
           };
         };
@@ -3944,10 +3950,13 @@ export interface paths {
                 | "invalid_address"
                 | "operation_in_progress"
                 | "platform_signing_forbidden"
-                | "tenant_organization_missing";
-              details?: {
-                [key: string]: unknown;
-              };
+                | "tenant_organization_missing"
+                | "utxo_input_unavailable";
+              details?:
+                | components["schemas"]["UtxoInputUnavailableDetails"]
+                | {
+                    [key: string]: unknown;
+                  };
             };
           };
         };
@@ -7095,10 +7104,13 @@ export interface paths {
                 | "address_derivation_conflict"
                 | "chain_not_supported"
                 | "invalid_address"
-                | "tenant_organization_missing";
-              details?: {
-                [key: string]: unknown;
-              };
+                | "tenant_organization_missing"
+                | "utxo_input_unavailable";
+              details?:
+                | components["schemas"]["UtxoInputUnavailableDetails"]
+                | {
+                    [key: string]: unknown;
+                  };
             };
           };
         };
@@ -8117,6 +8129,7 @@ export interface paths {
                   | "fee_rule_ambiguous"
                   | "fee_destination_missing"
                   | "output_below_dust"
+                  | "utxo_input_unavailable"
                   | "insufficient_role"
                   | "not_implemented"
                   | "swap_pair_not_supported"
@@ -8297,6 +8310,7 @@ export interface paths {
                   | "fee_rule_ambiguous"
                   | "fee_destination_missing"
                   | "output_below_dust"
+                  | "utxo_input_unavailable"
                   | "insufficient_role"
                   | "not_implemented"
                   | "swap_pair_not_supported"
@@ -8462,6 +8476,7 @@ export interface paths {
                 | "platform_signing_forbidden"
                 | "prepare_failed"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
@@ -8471,6 +8486,7 @@ export interface paths {
                 | components["schemas"]["FeeDestinationMissingDetails"]
                 | components["schemas"]["LightningFeesUnsignedDetails"]
                 | components["schemas"]["LightningInvoiceInUseDetails"]
+                | components["schemas"]["UtxoInputUnavailableDetails"]
                 | {
                     [key: string]: unknown;
                   };
@@ -8723,6 +8739,7 @@ export interface paths {
                   | "fee_rule_ambiguous"
                   | "fee_destination_missing"
                   | "output_below_dust"
+                  | "utxo_input_unavailable"
                   | "insufficient_role"
                   | "not_implemented"
                   | "swap_pair_not_supported"
@@ -8867,12 +8884,15 @@ export interface paths {
                 | "platform_signing_forbidden"
                 | "prepare_failed"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
-              details?: {
-                [key: string]: unknown;
-              };
+              details?:
+                | components["schemas"]["UtxoInputUnavailableDetails"]
+                | {
+                    [key: string]: unknown;
+                  };
             };
           };
         };
@@ -9265,6 +9285,7 @@ export interface paths {
                   | "fee_rule_ambiguous"
                   | "fee_destination_missing"
                   | "output_below_dust"
+                  | "utxo_input_unavailable"
                   | "insufficient_role"
                   | "not_implemented"
                   | "swap_pair_not_supported"
@@ -9414,12 +9435,15 @@ export interface paths {
                 | "platform_signing_forbidden"
                 | "prepare_failed"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
-              details?: {
-                [key: string]: unknown;
-              };
+              details?:
+                | components["schemas"]["UtxoInputUnavailableDetails"]
+                | {
+                    [key: string]: unknown;
+                  };
             };
           };
         };
@@ -9677,6 +9701,7 @@ export interface paths {
                   | "fee_rule_ambiguous"
                   | "fee_destination_missing"
                   | "output_below_dust"
+                  | "utxo_input_unavailable"
                   | "insufficient_role"
                   | "not_implemented"
                   | "swap_pair_not_supported"
@@ -9846,6 +9871,7 @@ export interface paths {
                 | "platform_signing_forbidden"
                 | "prepare_failed"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
                 | "wallet_role_tags_missing"
@@ -9853,6 +9879,7 @@ export interface paths {
                 | "zcash_tx_expired";
               details?:
                 | components["schemas"]["FeeDestinationMissingDetails"]
+                | components["schemas"]["UtxoInputUnavailableDetails"]
                 | {
                     [key: string]: unknown;
                   };
@@ -10005,9 +10032,9 @@ export interface paths {
               | "xrpl"
               | "lightning";
             buyAsset: string;
-            senderAddress: string;
-            additionalSenderAddresses?: string[];
-            recipientAddress: string;
+            fromAddress: string;
+            additionalFromAddresses?: string[];
+            toAddress: string;
             refundAddress?: string;
           };
         };
@@ -10052,7 +10079,9 @@ export interface paths {
               sellAmount: string;
               quotedBuyAmount: string;
               minimumBuyAmount: string;
-              additionalSenderAddresses: string[];
+              fromAddress: string;
+              toAddress: string;
+              additionalFromAddresses: string[];
               venueFundingAddress: string;
               fundingMemo: string | null;
               fundingTransaction: string;
@@ -10193,6 +10222,7 @@ export interface paths {
                 | "prepare_failed"
                 | "swap_quote_expired"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
                 | "wallet_role_tags_missing"
@@ -10201,6 +10231,7 @@ export interface paths {
                 | "zcash_tx_expired";
               details?:
                 | components["schemas"]["FeeDestinationMissingDetails"]
+                | components["schemas"]["UtxoInputUnavailableDetails"]
                 | {
                     [key: string]: unknown;
                   };
@@ -10376,7 +10407,9 @@ export interface paths {
               sellAmount: string;
               quotedBuyAmount: string;
               minimumBuyAmount: string;
-              additionalSenderAddresses: string[];
+              fromAddress: string;
+              toAddress: string;
+              additionalFromAddresses: string[];
               venueFundingAddress: string;
               fundingMemo: string | null;
               fundingTransaction: string;
@@ -10583,7 +10616,9 @@ export interface paths {
                 quotedBuyAmount: string;
                 minimumBuyAmount: string;
                 buyAmount: string | null;
-                additionalSenderAddresses: string[];
+                fromAddress: string;
+                toAddress: string;
+                additionalFromAddresses: string[];
                 venueFundingAddress: string;
                 fundingTxHash: string;
                 fundingPayoutId: string | null;
@@ -10795,7 +10830,9 @@ export interface paths {
                   quotedBuyAmount: string;
                   minimumBuyAmount: string;
                   buyAmount: string | null;
-                  additionalSenderAddresses: string[];
+                  fromAddress: string;
+                  toAddress: string;
+                  additionalFromAddresses: string[];
                   venueFundingAddress: string;
                   fundingTxHash: string;
                   fundingPayoutId: string | null;
@@ -10876,7 +10913,9 @@ export interface paths {
                   quotedBuyAmount: string;
                   minimumBuyAmount: string;
                   buyAmount: string | null;
-                  additionalSenderAddresses: string[];
+                  fromAddress: string;
+                  toAddress: string;
+                  additionalFromAddresses: string[];
                   venueFundingAddress: string;
                   fundingTxHash: string;
                   fundingPayoutId: string | null;
@@ -11035,6 +11074,7 @@ export interface paths {
                 | "swap_quote_expired"
                 | "swap_venue_busy"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
                 | "wallet_role_tags_missing"
@@ -11043,6 +11083,7 @@ export interface paths {
                 | "zcash_tx_expired";
               details?:
                 | components["schemas"]["FeeDestinationMissingDetails"]
+                | components["schemas"]["UtxoInputUnavailableDetails"]
                 | {
                     [key: string]: unknown;
                   };
@@ -11240,7 +11281,9 @@ export interface paths {
                   quotedBuyAmount: string;
                   minimumBuyAmount: string;
                   buyAmount: string | null;
-                  additionalSenderAddresses: string[];
+                  fromAddress: string;
+                  toAddress: string;
+                  additionalFromAddresses: string[];
                   venueFundingAddress: string;
                   fundingTxHash: string;
                   fundingPayoutId: string | null;
@@ -11321,7 +11364,9 @@ export interface paths {
                   quotedBuyAmount: string;
                   minimumBuyAmount: string;
                   buyAmount: string | null;
-                  additionalSenderAddresses: string[];
+                  fromAddress: string;
+                  toAddress: string;
+                  additionalFromAddresses: string[];
                   venueFundingAddress: string;
                   fundingTxHash: string;
                   fundingPayoutId: string | null;
@@ -11477,6 +11522,7 @@ export interface paths {
                 | "swap_funding_mismatch"
                 | "swap_quote_expired"
                 | "tenant_organization_missing"
+                | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
                 | "wallet_role_tags_missing"
@@ -11485,6 +11531,7 @@ export interface paths {
                 | "zcash_tx_expired";
               details?:
                 | components["schemas"]["FeeDestinationMissingDetails"]
+                | components["schemas"]["UtxoInputUnavailableDetails"]
                 | {
                     [key: string]: unknown;
                   };
@@ -11844,7 +11891,9 @@ export interface paths {
               quotedBuyAmount: string;
               minimumBuyAmount: string;
               buyAmount: string | null;
-              additionalSenderAddresses: string[];
+              fromAddress: string;
+              toAddress: string;
+              additionalFromAddresses: string[];
               venueFundingAddress: string;
               fundingTxHash: string;
               fundingPayoutId: string | null;
@@ -14399,7 +14448,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -14465,7 +14516,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -14531,7 +14584,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -14597,7 +14652,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -14663,7 +14720,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -14729,7 +14788,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -14795,7 +14856,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15326,7 +15389,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15392,7 +15457,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15458,7 +15525,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15524,7 +15593,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15590,7 +15661,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15656,7 +15729,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -15722,7 +15797,9 @@ export interface paths {
                       quotedBuyAmount: string;
                       minimumBuyAmount: string;
                       buyAmount: string | null;
-                      additionalSenderAddresses: string[];
+                      fromAddress: string;
+                      toAddress: string;
+                      additionalFromAddresses: string[];
                       venueFundingAddress: string;
                       fundingTxHash: string;
                       fundingPayoutId: string | null;
@@ -16389,6 +16466,24 @@ export interface components {
       field?: "fromAddress" | "additionalFromAddresses";
       address?: string;
     };
+    UtxoInputUnavailableDetails: {
+      field: "additionalFromAddresses";
+      chain:
+        | "ethereum"
+        | "polygon"
+        | "base"
+        | "solana"
+        | "bitcoin"
+        | "litecoin"
+        | "bitcoin-cash"
+        | "dogecoin"
+        | "zcash"
+        | "tron"
+        | "xrpl"
+        | "lightning";
+      inputs: string[];
+      detail: string;
+    };
     DestinationTagRequiredDetails: {
       chain:
         | "ethereum"
@@ -16443,7 +16538,7 @@ export interface components {
       detail: string;
     };
     SwapRouteUnavailableDetails: {
-      field?: "refundAddress" | "senderAddress";
+      field?: "refundAddress" | "fromAddress";
       detail: string;
     };
     RetryAfterDetails: {

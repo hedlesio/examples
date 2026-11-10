@@ -71,9 +71,9 @@ await runExample(async () => {
     buyAsset: options.buyAsset,
     amount: options.amount,
     side: choice(options.side, "--side", ["sell", "buy"]),
-    senderAddress: options.senderAddress,
-    ...(options.additionalSender.length > 0 ? { additionalSenderAddresses: options.additionalSender } : {}),
-    recipientAddress: options.recipientAddress,
+    fromAddress: options.senderAddress,
+    ...(options.additionalSender.length > 0 ? { additionalFromAddresses: options.additionalSender } : {}),
+    toAddress: options.recipientAddress,
     ...(options.refundAddress ? { refundAddress: options.refundAddress } : {}),
   });
 
