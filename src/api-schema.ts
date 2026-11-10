@@ -1367,19 +1367,6 @@ export interface paths {
             };
           };
         };
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              code: "not_found" | "tenant_not_found";
-              details?: {
-                [key: string]: unknown;
-              };
-            };
-          };
-        };
         408: {
           headers: {
             [name: string]: unknown;
@@ -3711,6 +3698,7 @@ export interface paths {
           content: {
             "application/json": {
               code:
+                | "payout_not_deletable"
                 | "platform_signing_forbidden"
                 | "tenant_organization_missing"
                 | "wallet_delete_failed"
@@ -8109,6 +8097,7 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
+                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -8136,7 +8125,6 @@ export interface paths {
                   | "swap_amount_below_minimum"
                   | "swap_amount_above_maximum"
                   | "swap_route_unavailable"
-                  | "swap_venue_busy"
                   | "swap_venue_unavailable"
                   | "swap_quote_not_found"
                   | "swap_quote_expired"
@@ -8290,6 +8278,7 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
+                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -8317,7 +8306,6 @@ export interface paths {
                   | "swap_amount_below_minimum"
                   | "swap_amount_above_maximum"
                   | "swap_route_unavailable"
-                  | "swap_venue_busy"
                   | "swap_venue_unavailable"
                   | "swap_quote_not_found"
                   | "swap_quote_expired"
@@ -8478,6 +8466,7 @@ export interface paths {
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
                 | "validation_error"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -8719,6 +8708,7 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
+                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -8746,7 +8736,6 @@ export interface paths {
                   | "swap_amount_below_minimum"
                   | "swap_amount_above_maximum"
                   | "swap_route_unavailable"
-                  | "swap_venue_busy"
                   | "swap_venue_unavailable"
                   | "swap_quote_not_found"
                   | "swap_quote_expired"
@@ -8885,6 +8874,7 @@ export interface paths {
                 | "prepare_failed"
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
@@ -9265,6 +9255,7 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
+                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -9292,7 +9283,6 @@ export interface paths {
                   | "swap_amount_below_minimum"
                   | "swap_amount_above_maximum"
                   | "swap_route_unavailable"
-                  | "swap_venue_busy"
                   | "swap_venue_unavailable"
                   | "swap_quote_not_found"
                   | "swap_quote_expired"
@@ -9436,6 +9426,7 @@ export interface paths {
                 | "prepare_failed"
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
@@ -9681,6 +9672,7 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
+                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -9708,7 +9700,6 @@ export interface paths {
                   | "swap_amount_below_minimum"
                   | "swap_amount_above_maximum"
                   | "swap_route_unavailable"
-                  | "swap_venue_busy"
                   | "swap_venue_unavailable"
                   | "swap_quote_not_found"
                   | "swap_quote_expired"
@@ -9874,6 +9865,7 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
@@ -10016,7 +10008,6 @@ export interface paths {
               | "lightning";
             sellAsset: string;
             amount: string;
-            side?: "sell" | "buy";
             enableSweep?: boolean;
             buyChain:
               | "ethereum"
@@ -10225,6 +10216,7 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -10297,19 +10289,6 @@ export interface paths {
           content: {
             "application/json": {
               code: "broadcast_failed" | "internal_server_error" | "prepare_failed";
-              details?: {
-                [key: string]: unknown;
-              };
-            };
-          };
-        };
-        501: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              code: "not_implemented";
               details?: {
                 [key: string]: unknown;
               };
@@ -11072,11 +11051,11 @@ export interface paths {
                 | "swap_funding_mismatch"
                 | "swap_quote_already_accepted"
                 | "swap_quote_expired"
-                | "swap_venue_busy"
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -11525,6 +11504,7 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
+                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -11730,7 +11710,7 @@ export interface paths {
           };
           content: {
             "application/json": {
-              code: "swap_pair_not_supported" | "validation_error";
+              code: "validation_error";
               details?: {
                 [key: string]: unknown;
               };
@@ -16382,7 +16362,6 @@ export interface components {
     TransferKind: "recipient" | "fee";
     Role: "reader" | "collector" | "ops" | "admin";
     SigningMethod: "stampedRequest" | "signedPsbt";
-    SwapAmountSide: "sell" | "buy";
     SwapFeeType: "inbound" | "outbound" | "liquidity" | "network" | "affiliate" | "service";
     SwapQuoteStatus: "quoted" | "expired" | "accepted";
     SwapStatus:

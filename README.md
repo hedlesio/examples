@@ -194,7 +194,7 @@ A swap is a request-for-quote flow that never takes custody of your keys. Reques
 bun run swap-quote \
   --sell-chain bitcoin --sell-asset BTC \
   --buy-chain ethereum --buy-asset USDT \
-  --amount 100000 --side sell \
+  --amount 100000 \
   --sender-address bc1qYourSendingAddress \
   --recipient-address 0xYourReceivingAddress
 ```
@@ -214,8 +214,7 @@ Supported directed pairs are `DOGE`, `LTC`, and `ZEC` into `BTC` or `USDT` (Ethe
 The quote returns firm terms (`sellAmount`, `quotedBuyAmount`, `minimumBuyAmount`), the
 `venueFundingAddress` (plus `fundingMemo` where the chain needs one), an unsigned `fundingTransaction`
 already built to pay it (a PSBT for UTXO sell chains), and an `expiresAt` deadline.
-`--side buy`, which fixes the bought leg instead, currently answers `501 not_implemented` — fix the sold
-leg. Swap routing covers mainnet pairs; a pair the venue cannot route (including testnet chains) is
+Quotes fix the sold amount. Swap routing covers mainnet pairs; a pair the venue cannot route (including testnet chains) is
 rejected with `400 swap_pair_not_supported`.
 
 Sign the `fundingTransaction` with the wallet that controls `--sender-address` — amount, destination, and

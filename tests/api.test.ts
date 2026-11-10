@@ -144,7 +144,6 @@ describe("HedlesApi", () => {
       buyChain: "ethereum",
       buyAsset: "BUY",
       amount: "1000",
-      side: "sell",
       fromAddress: "seller-address",
       toAddress: "buyer-address",
     });
@@ -159,7 +158,6 @@ describe("HedlesApi", () => {
       buyChain: "ethereum",
       buyAsset: "BUY",
       amount: "1000",
-      side: "sell",
       fromAddress: "seller-address",
       toAddress: "buyer-address",
     });

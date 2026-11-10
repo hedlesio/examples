@@ -150,7 +150,6 @@ describe("executeSwap", () => {
       buyChain: "bitcoin",
       buyAsset: "BTC",
       amount: "90000",
-      side: "sell",
       fromAddress: f.senderAddress,
       toAddress: "bc1qrecipient",
     };

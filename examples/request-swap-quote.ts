@@ -29,14 +29,9 @@ await runExample(async () => {
         required: true,
       },
       amount: {
-        description: "Amount in atomic units of the leg selected by --side",
+        description: "Amount in atomic units of the sold asset",
         valueName: "amount",
         required: true,
-      },
-      side: {
-        description: "Which leg the amount fixes: sell or buy (buy is not implemented yet)",
-        valueName: "side",
-        defaultValue: "sell",
       },
       senderAddress: {
         description: "Your wallet address that sends the sold asset to the venue",
@@ -70,7 +65,6 @@ await runExample(async () => {
     buyChain: choice(options.buyChain, "--buy-chain", CHAINS),
     buyAsset: options.buyAsset,
     amount: options.amount,
-    side: choice(options.side, "--side", ["sell", "buy"]),
     fromAddress: options.senderAddress,
     ...(options.additionalSender.length > 0 ? { additionalFromAddresses: options.additionalSender } : {}),
     toAddress: options.recipientAddress,
