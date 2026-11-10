@@ -3702,6 +3702,7 @@ export interface paths {
                 | "platform_signing_forbidden"
                 | "tenant_organization_missing"
                 | "wallet_delete_failed"
+                | "wallet_deletion_in_progress"
                 | "wallet_has_funds"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict";
