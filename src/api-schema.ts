@@ -3709,6 +3709,7 @@ export interface paths {
             "application/json": {
               code:
                 | "payout_not_deletable"
+                | "payout_source_busy"
                 | "platform_signing_forbidden"
                 | "tenant_organization_missing"
                 | "wallet_delete_failed"
