@@ -3632,7 +3632,12 @@ export interface paths {
           };
           content: {
             "application/json": {
-              code: "invalid_json" | "tenant_has_no_wallet" | "validation_error" | "wallet_delete_failed";
+              code:
+                | "asset_not_found"
+                | "invalid_json"
+                | "tenant_has_no_wallet"
+                | "validation_error"
+                | "wallet_delete_failed";
               details?: {
                 [key: string]: unknown;
               };
@@ -3658,7 +3663,12 @@ export interface paths {
           };
           content: {
             "application/json": {
-              code: "csrf_rejected" | "forbidden" | "insufficient_role" | "wallet_delete_failed";
+              code:
+                | "csrf_rejected"
+                | "forbidden"
+                | "insufficient_role"
+                | "lightning_not_enabled"
+                | "wallet_delete_failed";
               details?: {
                 [key: string]: unknown;
               };
@@ -3770,6 +3780,7 @@ export interface paths {
             "application/json": {
               code:
                 | "database_unavailable"
+                | "lightning_unavailable"
                 | "provider_outcome_unknown"
                 | "provider_timeout"
                 | "rate_limit_unavailable"
