@@ -3632,12 +3632,7 @@ export interface paths {
           };
           content: {
             "application/json": {
-              code:
-                | "asset_not_found"
-                | "invalid_json"
-                | "tenant_has_no_wallet"
-                | "validation_error"
-                | "wallet_delete_failed";
+              code: "invalid_json" | "tenant_has_no_wallet" | "validation_error" | "wallet_delete_failed";
               details?: {
                 [key: string]: unknown;
               };
@@ -3663,12 +3658,7 @@ export interface paths {
           };
           content: {
             "application/json": {
-              code:
-                | "csrf_rejected"
-                | "forbidden"
-                | "insufficient_role"
-                | "lightning_not_enabled"
-                | "wallet_delete_failed";
+              code: "csrf_rejected" | "forbidden" | "insufficient_role" | "wallet_delete_failed";
               details?: {
                 [key: string]: unknown;
               };
@@ -3708,12 +3698,9 @@ export interface paths {
           content: {
             "application/json": {
               code:
-                | "payout_not_deletable"
-                | "payout_source_busy"
                 | "platform_signing_forbidden"
                 | "tenant_organization_missing"
                 | "wallet_delete_failed"
-                | "wallet_deletion_in_progress"
                 | "wallet_has_funds"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict";
@@ -3781,7 +3768,6 @@ export interface paths {
             "application/json": {
               code:
                 | "database_unavailable"
-                | "lightning_unavailable"
                 | "provider_outcome_unknown"
                 | "provider_timeout"
                 | "rate_limit_unavailable"
@@ -8110,7 +8096,6 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
-                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -8291,7 +8276,6 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
-                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -8479,7 +8463,6 @@ export interface paths {
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
                 | "validation_error"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -8721,7 +8704,6 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
-                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -8887,7 +8869,6 @@ export interface paths {
                 | "prepare_failed"
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
@@ -9268,7 +9249,6 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
-                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -9439,7 +9419,6 @@ export interface paths {
                 | "prepare_failed"
                 | "tenant_organization_missing"
                 | "utxo_input_unavailable"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
@@ -9685,7 +9664,6 @@ export interface paths {
                   | "wallet_create_user_failed"
                   | "wallet_delete_user_failed"
                   | "wallet_delete_failed"
-                  | "wallet_deletion_in_progress"
                   | "wallet_has_funds"
                   | "wallet_create_address_failed"
                   | "wallet_delete_api_key_failed"
@@ -9878,7 +9856,6 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_state_conflict"
                 | "zcash_tx_expired";
@@ -10229,7 +10206,6 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -11068,7 +11044,6 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
@@ -11517,7 +11492,6 @@ export interface paths {
                 | "utxo_input_unavailable"
                 | "validation_error"
                 | "wallet_create_address_failed"
-                | "wallet_deletion_in_progress"
                 | "wallet_role_tags_missing"
                 | "zcash_sandwich_not_permitted"
                 | "zcash_sandwich_state_conflict"
