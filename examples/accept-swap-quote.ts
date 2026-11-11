@@ -12,11 +12,6 @@ await runExample(async () => {
         valueName: "id",
         required: true,
       },
-      token: {
-        description: "Short-lived token returned with the quote",
-        valueName: "token",
-        required: true,
-      },
       signature: {
         description: "Signed funding transaction produced from the quote's fundingTransaction",
         valueName: "payload",
@@ -29,7 +24,6 @@ await runExample(async () => {
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
   const swap = await api.acceptSwapQuote({
     quoteId: options.quoteId,
-    token: options.token,
     signature: options.signature,
   });
 

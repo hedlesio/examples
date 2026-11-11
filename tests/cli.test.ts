@@ -34,7 +34,6 @@ function payout(complete: boolean) {
     chain: "base",
     asset: "asset",
     fromAddress: "from",
-    toAddress: "to",
     amount: "1000",
     feeTotal: null,
     executionMode: "atomic",
@@ -47,13 +46,11 @@ function payout(complete: boolean) {
     transfers: [
       {
         id: "transfer-cli",
-        position: 0,
         kind: "recipient",
         toAddress: "to",
         amount: "1000",
         status: "pending",
         error: null,
-        createdAt: "2026-07-30T00:00:00.000Z",
         settledAt: null,
       },
     ],
@@ -75,12 +72,10 @@ function quote() {
     sellAmount: "90000",
     quotedBuyAmount: "7273",
     minimumBuyAmount: "7200",
-    quotedRate: "0.0000000808",
     venueFundingAddress: fixture.venueAddress,
     fundingMemo: null,
     fundingTransaction: fixture.unsigned,
     signingRequests: [],
-    token: "quote-token",
     expiresAt: new Date(Date.now() + 600_000).toISOString(),
     createdAt: new Date().toISOString(),
   };
@@ -97,7 +92,6 @@ function swap() {
     sellAmount: "90000",
     quotedBuyAmount: "7273",
     minimumBuyAmount: "7200",
-    quotedRate: "0.0000000808",
     venueFundingAddress: fixture.venueAddress,
     fundingTxHash: "ab".repeat(32),
     failureReason: null,
@@ -189,7 +183,6 @@ beforeAll(() => {
             amount: null,
             txHash: null,
             confirmations: 0,
-            classification: "matched",
             createdAt: "2026-07-30T00:00:00.000Z",
             confirmedAt: null,
             expiresAt: "2026-07-30T01:00:00.000Z",
@@ -226,8 +219,7 @@ beforeAll(() => {
         GET: () => Response.json(quote()),
       },
       "/v1/swaps": {
-        GET: () =>
-          Response.json({ items: [swap()], total: 1, limit: 20, page: 1, totalPages: 1, hasMore: false }),
+        GET: () => Response.json({ items: [swap()], total: 1, limit: 20, page: 1, hasMore: false }),
         async POST(request) {
           acceptBodies.push(await request.json());
           return Response.json(swap(), { status: 201 });
@@ -326,9 +318,9 @@ describe("Bun example commands", () => {
         "1000",
       ],
       testEnvironment(),
-    )) as { id: string; classification: string };
+    )) as { id: string };
     expect(payinResult.id).toBe("payin-cli");
-    expect(payinResult.classification).toBe("matched");
+    expect(payinResult).not.toHaveProperty("classification");
     expect(payinBody).toEqual({ chain: "base", asset: "asset", amount: "1000", expiresIn: 3600 });
 
     const payoutResult = (await run(
@@ -450,9 +442,9 @@ describe("Bun example commands", () => {
     expect(swapResult.swap.id).toBe(quoteId);
     expect(swapResult.swap.status).toBe("pending");
 
-    const accepted = acceptBodies[0] as { quoteId: string; token: string; signature: string };
+    const accepted = acceptBodies[0] as { quoteId: string; signature: string };
     expect(accepted.quoteId).toBe(quoteId);
-    expect(accepted.token).toBe("quote-token");
+    expect(accepted).not.toHaveProperty("token");
     const signed = bitgo.createPsbtDecode(accepted.signature, fixture.network);
     expect(signed.validateSignaturesOfAllInputs()).toBe(true);
 

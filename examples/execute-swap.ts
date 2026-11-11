@@ -36,13 +36,8 @@ await runExample(async () => {
         valueName: "key",
       },
       amount: {
-        description: "Amount in atomic units of the leg selected by --side",
+        description: "Amount in atomic units of the sold asset",
         valueName: "amount",
-      },
-      side: {
-        description: "Which leg the amount fixes: sell or buy (buy is not implemented yet)",
-        valueName: "side",
-        defaultValue: "sell",
       },
       senderAddress: {
         description: "Your wallet address that sends the sold asset; HEDLES_SWAP_SIGNING_KEY must control it",
@@ -79,9 +74,8 @@ await runExample(async () => {
       buyChain: choice(requireOption(options.buyChain, "--buy-chain"), "--buy-chain", CHAINS),
       buyAsset: requireOption(options.buyAsset, "--buy-asset"),
       amount: requireOption(options.amount, "--amount"),
-      side: choice(options.side, "--side", ["sell", "buy"]),
-      senderAddress: requireOption(options.senderAddress, "--sender-address"),
-      recipientAddress: requireOption(options.recipientAddress, "--recipient-address"),
+      fromAddress: requireOption(options.senderAddress, "--sender-address"),
+      toAddress: requireOption(options.recipientAddress, "--recipient-address"),
       ...(options.refundAddress ? { refundAddress: options.refundAddress } : {}),
     },
     fundingSigner(signingKey, sellChain),

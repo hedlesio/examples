@@ -16,15 +16,10 @@ await runExample(async () => {
         valueName: "id",
         required: true,
       },
-      token: {
-        description: "Short-lived token returned with the quote",
-        valueName: "token",
-        required: true,
-      },
     },
   });
   if (!options) return;
 
   const api = await authenticatedApi(options.apiUrl, options.organizationId);
-  printJson(await signManagedSwap(api, options.quoteId, options.token, createStamper(apiKeyCredentials())));
+  printJson(await signManagedSwap(api, options.quoteId, createStamper(apiKeyCredentials())));
 });

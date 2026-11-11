@@ -29,14 +29,9 @@ await runExample(async () => {
         required: true,
       },
       amount: {
-        description: "Amount in atomic units of the leg selected by --side",
+        description: "Amount in atomic units of the sold asset",
         valueName: "amount",
         required: true,
-      },
-      side: {
-        description: "Which leg the amount fixes: sell or buy (buy is not implemented yet)",
-        valueName: "side",
-        defaultValue: "sell",
       },
       senderAddress: {
         description: "Your wallet address that sends the sold asset to the venue",
@@ -70,10 +65,9 @@ await runExample(async () => {
     buyChain: choice(options.buyChain, "--buy-chain", CHAINS),
     buyAsset: options.buyAsset,
     amount: options.amount,
-    side: choice(options.side, "--side", ["sell", "buy"]),
-    senderAddress: options.senderAddress,
-    ...(options.additionalSender.length > 0 ? { additionalSenderAddresses: options.additionalSender } : {}),
-    recipientAddress: options.recipientAddress,
+    fromAddress: options.senderAddress,
+    ...(options.additionalSender.length > 0 ? { additionalFromAddresses: options.additionalSender } : {}),
+    toAddress: options.recipientAddress,
     ...(options.refundAddress ? { refundAddress: options.refundAddress } : {}),
   });
 
@@ -81,8 +75,8 @@ await runExample(async () => {
   console.error(
     `\nAccept before ${quote.expiresAt}. The quote reserves nothing until then.\n` +
       `- Hedles wallet: Hedles builds the funding and you sign its requests:\n` +
-      `    bun run swap-sign --quote-id ${quote.id} --token <token>\n` +
+      `    bun run swap-sign --quote-id ${quote.id}\n` +
       `- Wallet you control: sign the quote's fundingTransaction, then:\n` +
-      `    bun run swap-accept --quote-id ${quote.id} --token <token> --signature <signed funding transaction>`,
+      `    bun run swap-accept --quote-id ${quote.id} --signature <signed funding transaction>`,
   );
 });
