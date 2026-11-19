@@ -28,13 +28,13 @@ function quote(overrides: Partial<SwapQuoteResponse> = {}): SwapQuoteResponse {
     sellAmount: "90000",
     quotedBuyAmount: "8186526",
     minimumBuyAmount: "8104661",
-    quotedRate: "90961.4",
-    additionalSenderAddresses: [],
+    fromAddress: "bc1qsender",
+    toAddress: "0x1111111111111111111111111111111111111111",
+    additionalFromAddresses: [],
     venueFundingAddress: "bc1qvenue",
     refundAddress: "bc1qsender",
     fundingMemo: null,
     fundingTransaction: "",
-    token: "quote-token",
     expiresAt: new Date(Date.now() + 600_000).toISOString(),
     createdAt: new Date().toISOString(),
     ...overrides,
@@ -52,10 +52,13 @@ function swap(id: string): SwapResponse {
     sellAmount: "90000",
     quotedBuyAmount: "8186526",
     minimumBuyAmount: "8104661",
-    quotedRate: "90961.4",
-    additionalSenderAddresses: [],
+    fromAddress: "bc1qsender",
+    toAddress: "0x1111111111111111111111111111111111111111",
+    additionalFromAddresses: [],
     venueFundingAddress: "bc1qvenue",
     fundingTxHash: "ab".repeat(32),
+    fundingPayoutId: null,
+    refundAmount: null,
     refundAddress: "bc1qsender",
     buyAmount: null,
     payoutTxHash: null,
@@ -123,7 +126,7 @@ describe("assertQuoteAcceptable", () => {
 });
 
 describe("executeSwap", () => {
-  test("requests a quote, signs its PSBT, and accepts with the bound token", async () => {
+  test("requests a quote, signs its PSBT, and accepts by quote ID", async () => {
     const f = fundingFixture("dogecoin");
     const requests: RequestSwapQuoteInput[] = [];
     const accepts: AcceptSwapQuoteInput[] = [];
@@ -147,9 +150,8 @@ describe("executeSwap", () => {
       buyChain: "bitcoin",
       buyAsset: "BTC",
       amount: "90000",
-      side: "sell",
-      senderAddress: f.senderAddress,
-      recipientAddress: "bc1qrecipient",
+      fromAddress: f.senderAddress,
+      toAddress: "bc1qrecipient",
     };
 
     const result = await executeSwap(api, input, fundingSigner(f.senderWif, "dogecoin"));
@@ -157,7 +159,7 @@ describe("executeSwap", () => {
     expect(requests).toEqual([input]);
     expect(accepts).toHaveLength(1);
     expect(accepts[0]?.quoteId).toBe(issued.id);
-    expect(accepts[0]?.token).toBe("quote-token");
+    expect(accepts[0]).not.toHaveProperty("token");
     expect(accepts[0]?.signature).toBe(result.signature);
     expect(result.swap.id).toBe(issued.id);
 
@@ -175,7 +177,7 @@ describe("signManagedSwap", () => {
     },
   };
 
-  test("stamps the funding payout's requests and returns them with their tokens", async () => {
+  test("stamps the funding payout's requests and returns their IDs and stamps", async () => {
     const submitted: unknown[] = [];
     const api = {
       async prepareSwapSigning() {
@@ -188,7 +190,6 @@ describe("signManagedSwap", () => {
               body: "body-1",
               signer: "bc1qsender",
               transaction: "0x70736274ff",
-              token: "request-token",
             },
           ],
         };
@@ -201,7 +202,7 @@ describe("signManagedSwap", () => {
         throw new Error("unexpected swap read");
       },
     };
-    await signManagedSwap(api, "quote-1", "quote-token", stamper);
+    await signManagedSwap(api, "quote-1", stamper);
     expect(submitted).toEqual([
       {
         quoteId: "quote-1",
@@ -210,7 +211,6 @@ describe("signManagedSwap", () => {
             id: "00000000-0000-4000-8000-000000000001",
             method: "stampedRequest",
             body: "body-1",
-            token: "request-token",
             stamp: { name: "X-Stamp", value: "signed:body-1" },
           },
         ],
@@ -224,7 +224,6 @@ describe("signManagedSwap", () => {
       body: `body-${n}`,
       signer: "0x0000000000000000000000000000000000000001",
       transaction: "0x04",
-      token: `token-${n}`,
     });
     const rounds: string[][] = [];
     const api = {
@@ -241,7 +240,7 @@ describe("signManagedSwap", () => {
         throw new Error("unexpected swap read");
       },
     };
-    expect(await signManagedSwap(api, "quote-1", "quote-token", stamper)).toEqual({
+    expect(await signManagedSwap(api, "quote-1", stamper)).toEqual({
       status: "accepted",
     } as never);
     expect(rounds).toEqual([["body-1"], ["body-2"]]);
@@ -253,7 +252,6 @@ describe("signManagedSwap", () => {
       body: `body-${id}`,
       signer: "t1signer",
       transaction: "00",
-      token: `token-${id}`,
     });
     const prepares = [
       { id: "quote-1", signingRequests: [request("derivation")] },
@@ -277,7 +275,7 @@ describe("signManagedSwap", () => {
         return { id: "quote-1", status: "pending" } as never;
       },
     };
-    const result = await signManagedSwap(api, "quote-1", "quote-token", stamper, {
+    const result = await signManagedSwap(api, "quote-1", stamper, {
       intervalMs: 10,
       timeoutMs: 60_000,
       sleep: async (ms) => {

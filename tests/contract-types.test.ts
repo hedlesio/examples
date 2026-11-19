@@ -15,8 +15,8 @@ function compileContracts(address: AddressEntry, payout: PayoutResponse) {
     buyChain: "ethereum",
     buyAsset: "USDC",
     amount: "1000",
-    senderAddress: "sender",
-    recipientAddress: "recipient",
+    fromAddress: "sender",
+    toAddress: "recipient",
   };
   // @ts-expect-error Atomic amounts are decimal strings.
   payin.amount = 1000;
