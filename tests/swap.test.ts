@@ -6,14 +6,17 @@ import {
   assertQuoteAcceptable,
   executeSwap,
   fundingSigner,
+  MANAGED_SWAP_WAIT,
   signFundingTransaction,
   signManagedSwap,
 } from "../src/swap.ts";
 import type {
   AcceptSwapQuoteInput,
   RequestSwapQuoteInput,
+  SignedSwapActivity,
   SwapQuoteResponse,
   SwapResponse,
+  SwapSigningRequest,
 } from "../src/types.ts";
 import { fundingFixture } from "./_helpers/funding-psbt.ts";
 
@@ -176,6 +179,91 @@ describe("signManagedSwap", () => {
       return { stampHeaderName: "X-Stamp", stampHeaderValue: `signed:${input}` };
     },
   };
+
+  test.each([true, false])(
+    "asks for review before stamping a rebuilt funding payout (%s)",
+    async (approved) => {
+      const original: SwapSigningRequest = {
+        id: "00000000-0000-4000-8000-000000000001",
+        method: "stampedRequest",
+        body: "original-body",
+        signer: "0x0000000000000000000000000000000000000001",
+        transaction: "0x04",
+      };
+      const replacement = {
+        ...original,
+        id: "00000000-0000-4000-8000-000000000002",
+        body: "replacement-body",
+        transaction: "0x05",
+      };
+      const steps: unknown[] = [];
+      let prepares = 0;
+      const api = {
+        async prepareSwapSigning({ quoteId }: { quoteId: string }) {
+          steps.push(["prepare", quoteId]);
+          prepares += 1;
+          return { id: quoteId, signingRequests: [prepares === 1 ? original : replacement] };
+        },
+        async submitSwapSignatures(quoteId: string, requests: SignedSwapActivity[]) {
+          steps.push(["submit", quoteId, requests]);
+          if (prepares === 1) {
+            throw new HedlesApiError(409, {
+              code: "broadcast_failed",
+              details: {
+                detail: "the payout's message changed after it was signed; read the payout and sign again",
+              },
+            });
+          }
+          return { id: quoteId, status: "pending" } as never;
+        },
+        async getSwap(): Promise<SwapResponse> {
+          throw new Error("unexpected swap read");
+        },
+      };
+      const result = signManagedSwap(
+        api,
+        "quote-1",
+        {
+          async stamp(input) {
+            steps.push(["stamp", input]);
+            return stamper.stamp(input);
+          },
+        },
+        {
+          ...MANAGED_SWAP_WAIT,
+          reviewReplacement(transactions) {
+            steps.push(["review", transactions]);
+            return approved;
+          },
+        },
+      );
+      if (approved) {
+        expect(await result).toEqual({ id: "quote-1", status: "pending" } as never);
+      } else {
+        await expect(result).rejects.toThrow("requires review of its rebuilt funding transaction");
+      }
+      const submitted = (request: SwapSigningRequest) => [
+        "submit",
+        "quote-1",
+        [
+          {
+            id: request.id,
+            method: request.method,
+            body: request.body,
+            stamp: { name: "X-Stamp", value: `signed:${request.body}` },
+          },
+        ],
+      ];
+      expect(steps).toEqual([
+        ["prepare", "quote-1"],
+        ["stamp", original.body],
+        submitted(original),
+        ["prepare", "quote-1"],
+        ["review", [replacement.transaction]],
+        ...(approved ? [["stamp", replacement.body], submitted(replacement)] : []),
+      ]);
+    },
+  );
 
   test("stamps the funding payout's requests and returns their IDs and stamps", async () => {
     const submitted: unknown[] = [];

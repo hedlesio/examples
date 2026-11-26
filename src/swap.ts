@@ -1,9 +1,9 @@
 import { bitgo, ECPair, type Network, networks } from "@bitgo/utxo-lib";
 import { type HedlesApi, HedlesApiError } from "./api.ts";
 import type { RoundWait } from "./payout.ts";
+import { signingMessageChanged, stampActivities } from "./signing.ts";
 import type {
   RequestSwapQuoteInput,
-  SignedSwapActivity,
   Stamper,
   SubmitSwapSignaturesResponse,
   SwapQuoteResponse,
@@ -139,33 +139,41 @@ const MAX_SIGNING_ROUNDS = 4;
 export const MANAGED_SWAP_WAIT: RoundWait = { intervalMs: 5_000, timeoutMs: 30 * 60_000 };
 
 type ManagedSwapStep = SubmitSwapSignaturesResponse | SwapResponse;
+type ManagedSwapSigningOptions = RoundWait & {
+  reviewReplacement?: (transactions: readonly string[]) => boolean | Promise<boolean>;
+};
 
 export async function signManagedSwap(
   api: ManagedSwapApi,
   quoteId: string,
   stamper: Stamper,
-  wait: RoundWait = MANAGED_SWAP_WAIT,
+  options: ManagedSwapSigningOptions = MANAGED_SWAP_WAIT,
 ): Promise<ManagedSwapStep> {
   let pending: ManagedSwapStep = await api.prepareSwapSigning({ quoteId });
+  let needsReview = false;
   for (let round = 0; round < MAX_SIGNING_ROUNDS; round += 1) {
     if (!("signingRequests" in pending)) return pending;
-    if (pending.signingRequests.length === 0) pending = await waitForSwapStep(api, quoteId, wait);
+    if (pending.signingRequests.length === 0) pending = await waitForSwapStep(api, quoteId, options);
     if (!("signingRequests" in pending)) return pending;
-    const stamped: SignedSwapActivity[] = await Promise.all(
-      pending.signingRequests.map(async (request) => {
-        const stamp = await stamper.stamp(request.body);
-        return {
-          id: request.id,
-          method: request.method,
-          body: request.body,
-          stamp: { name: stamp.stampHeaderName, value: stamp.stampHeaderValue },
-        };
-      }),
-    );
-    pending = await api.submitSwapSignatures(quoteId, stamped);
+    if (needsReview) {
+      const transactions = pending.signingRequests.map((request) => request.transaction);
+      if (!(await options.reviewReplacement?.(transactions))) {
+        throw new Error(`quote ${quoteId} requires review of its rebuilt funding transaction`);
+      }
+    }
+    const stamped = await stampActivities(pending.signingRequests, stamper);
+    try {
+      pending = await api.submitSwapSignatures(quoteId, stamped);
+      needsReview = false;
+    } catch (err) {
+      if (!signingMessageChanged(err)) throw err;
+      pending = await api.prepareSwapSigning({ quoteId });
+      needsReview = true;
+    }
   }
-  if ("signingRequests" in pending && pending.signingRequests.length === 0) {
-    return waitForSwapStep(api, quoteId, wait);
+  if (!("signingRequests" in pending)) return pending;
+  if (!needsReview && pending.signingRequests.length === 0) {
+    return waitForSwapStep(api, quoteId, options);
   }
   throw new Error(`quote ${quoteId} still needs signatures after ${MAX_SIGNING_ROUNDS} rounds`);
 }

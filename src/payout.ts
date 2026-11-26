@@ -1,6 +1,6 @@
 import { bitgo } from "@bitgo/utxo-lib";
-import { type HedlesApi, HedlesApiError } from "./api.ts";
-import { stampActivities } from "./signing.ts";
+import type { HedlesApi } from "./api.ts";
+import { signingConflict, signingMessageChanged, stampActivities } from "./signing.ts";
 import { fundingNetwork, utxoKeyPair } from "./swap.ts";
 import type { CreatePayoutResponse, PayoutResponse, SignedActivity, Stamper } from "./types.ts";
 
@@ -110,7 +110,7 @@ async function submitWhileBusy(
     try {
       return await api.submitPayoutSignatures(payoutId, stamped);
     } catch (err) {
-      if (messageChanged(err)) {
+      if (signingMessageChanged(err)) {
         throw new Error(
           `payout ${payoutId} was rebuilt after it was signed; read the payout and sign it again`,
           {
@@ -125,28 +125,9 @@ async function submitWhileBusy(
   }
 }
 
-function conflict(err: unknown): { code: string | undefined; details: Record<string, unknown> } | null {
-  if (!(err instanceof HedlesApiError) || err.status !== 409) return null;
-  if (typeof err.body !== "object" || err.body === null) return null;
-  const { details } = err.body;
-  return {
-    code: err.body.code,
-    details:
-      typeof details === "object" && details !== null ? Object.fromEntries(Object.entries(details)) : {},
-  };
-}
-
 function retryableBusy(err: unknown): boolean {
-  const body = conflict(err);
+  const body = signingConflict(err);
   return body?.code === "payout_source_busy" && body.details.retryable === true;
-}
-
-function messageChanged(err: unknown): boolean {
-  const body = conflict(err);
-  const detail = body?.details.detail;
-  return (
-    body?.code === "broadcast_failed" && typeof detail === "string" && detail.includes("message changed")
-  );
 }
 
 async function waitForNextRound(
