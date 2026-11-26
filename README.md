@@ -257,6 +257,9 @@ When `--sender-address` is a Hedles wallet, the quote returns `signingRequests` 
 you to sign: Hedles funds the swap with its own payout (carrying any venue memo). Stamp and submit them with
 `bun run swap-sign --quote-id <id>`. If an additional sender is an address Hedles does not
 control, sign its inputs on the funding payout with `signedPsbt` (see the payout section) before stamping.
+If the funding payout is rebuilt, `swap-sign` fetches the current requests for the same quote and
+shows the replacement transaction on stderr. Confirm it in an interactive terminal to stamp and submit
+the new requests.
 
 Supported directed pairs are `DOGE`, `LTC`, and `ZEC` into `BTC` or `USDT` (Ethereum), and `BTC` into
 `USDT`. Zcash is transparent-address only, and route availability is dynamic.
